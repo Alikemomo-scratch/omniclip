@@ -37,8 +37,7 @@ coverage/
 # Extension build
 packages/extension/dist/
 
-# Database
-packages/backend/drizzle/*.sql
+# Database (migrations are tracked — don't ignore them)
 
 # Misc
 *.tgz
