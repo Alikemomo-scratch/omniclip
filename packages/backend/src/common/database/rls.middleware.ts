@@ -1,5 +1,9 @@
 import { sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type * as schema from './schema';
+
+/** Convenience type alias for the Drizzle DB instance with our schema. */
+export type DrizzleDB = NodePgDatabase<typeof schema>;
 
 /**
  * Set the current user ID in the PostgreSQL session for RLS policy evaluation.
@@ -9,7 +13,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
  * @param userId - The authenticated user's UUID
  */
 export async function setRlsContext(
-  db: NodePgDatabase,
+  db: DrizzleDB,
   userId: string,
 ): Promise<void> {
   await db.execute(
@@ -26,14 +30,14 @@ export async function setRlsContext(
  * @returns The result of the callback
  */
 export async function withRlsContext<T>(
-  db: NodePgDatabase,
+  db: DrizzleDB,
   userId: string,
-  callback: (tx: NodePgDatabase) => Promise<T>,
+  callback: (tx: DrizzleDB) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
     await tx.execute(
       sql`SELECT set_config('app.current_user_id', ${userId}, true)`,
     );
-    return callback(tx as unknown as NodePgDatabase);
+    return callback(tx as unknown as DrizzleDB);
   });
 }
