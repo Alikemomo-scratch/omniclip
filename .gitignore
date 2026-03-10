@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Test coverage
+coverage/
+
+# Turbo
+.turbo/
+
+# Extension build
+packages/extension/dist/
+
+# Database
+packages/backend/drizzle/*.sql
+
+# Misc
+*.tgz

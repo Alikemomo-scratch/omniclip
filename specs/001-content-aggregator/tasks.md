@@ -18,14 +18,14 @@
 
 **Purpose**: Monorepo initialization, tooling, Docker infrastructure
 
-- [ ] T001 Initialize Turborepo monorepo with `packages/backend`, `packages/frontend`, `packages/extension`, `packages/shared` workspaces. Create root `package.json`, `turbo.json`, `tsconfig.base.json`, `.gitignore`, `.nvmrc` (Node 20 LTS). Package manager: pnpm.
-- [ ] T002 [P] Configure `packages/backend` — Initialize NestJS 10.x project with TypeScript. Install core deps: `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/config`, `@nestjs/bullmq`, `drizzle-orm`, `pg`, `bullmq`, `bcrypt`, `@nestjs/jwt`, `@nestjs/passport`, `class-validator`, `class-transformer`. Create `src/main.ts`, `src/app.module.ts`.
-- [ ] T003 [P] Configure `packages/frontend` — Initialize Next.js 15.x with App Router, React 19, TypeScript. Install: `tailwindcss@4`, `@tanstack/react-query@5`, `next-intl`. Initialize shadcn/ui. Create base layout `src/app/layout.tsx`.
-- [ ] T004 [P] Configure `packages/extension` — Create Manifest V3 Chrome extension scaffold. Create `src/manifest.json` with strict `host_permissions` (xiaohongshu.com, x.com, twitter.com). Create `src/background/service-worker.ts`, `src/popup/index.html`. Build tooling: Vite or webpack for extension bundling.
-- [ ] T005 [P] Configure `packages/shared` — Create shared TypeScript package with `types/`, `dto/`, `constants/` directories. Export platform IDs, content types, sync payload DTOs, connector interfaces as defined in `contracts/connector.md`.
-- [ ] T006 [P] Create `docker-compose.yml` at repo root — PostgreSQL 16 (`localhost:5432`, db: `aggregator_dev`, user: `postgres`) + Redis 7 (`localhost:6379`). Add healthcheck for both services.
-- [ ] T007 [P] Configure development tooling — ESLint (flat config), Prettier, Vitest (root + per-package), Playwright (frontend E2E). Create root scripts: `dev`, `build`, `test`, `lint`, `format`, `typecheck`.
-- [ ] T008 [P] Create environment config — `packages/backend/.env.example` and `packages/frontend/.env.example` per quickstart.md. Add `packages/backend/src/common/config/` with typed NestJS `ConfigModule` setup.
+- [X] T001 Initialize Turborepo monorepo with `packages/backend`, `packages/frontend`, `packages/extension`, `packages/shared` workspaces. Create root `package.json`, `turbo.json`, `tsconfig.base.json`, `.gitignore`, `.nvmrc` (Node 20 LTS). Package manager: pnpm.
+- [X] T002 [P] Configure `packages/backend` — Initialize NestJS 10.x project with TypeScript. Install core deps: `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/config`, `@nestjs/bullmq`, `drizzle-orm`, `pg`, `bullmq`, `bcrypt`, `@nestjs/jwt`, `@nestjs/passport`, `class-validator`, `class-transformer`. Create `src/main.ts`, `src/app.module.ts`.
+- [X] T003 [P] Configure `packages/frontend` — Initialize Next.js 15.x with App Router, React 19, TypeScript. Install: `tailwindcss@4`, `@tanstack/react-query@5`, `next-intl`. Initialize shadcn/ui. Create base layout `src/app/layout.tsx`.
+- [X] T004 [P] Configure `packages/extension` — Create Manifest V3 Chrome extension scaffold. Create `src/manifest.json` with strict `host_permissions` (xiaohongshu.com, x.com, twitter.com). Create `src/background/service-worker.ts`, `src/popup/index.html`. Build tooling: Vite or webpack for extension bundling.
+- [X] T005 [P] Configure `packages/shared` — Create shared TypeScript package with `types/`, `dto/`, `constants/` directories. Export platform IDs, content types, sync payload DTOs, connector interfaces as defined in `contracts/connector.md`.
+- [X] T006 [P] Create `docker-compose.yml` at repo root — PostgreSQL 16 (`localhost:5432`, db: `aggregator_dev`, user: `postgres`) + Redis 7 (`localhost:6379`). Add healthcheck for both services.
+- [X] T007 [P] Configure development tooling — ESLint (flat config), Prettier, Vitest (root + per-package), Playwright (frontend E2E). Create root scripts: `dev`, `build`, `test`, `lint`, `format`, `typecheck`.
+- [X] T008 [P] Create environment config — `packages/backend/.env.example` and `packages/frontend/.env.example` per quickstart.md. Add `packages/backend/src/common/config/` with typed NestJS `ConfigModule` setup.
 
 **Checkpoint**: `pnpm install` succeeds, `pnpm build` compiles all 4 packages, `docker-compose up -d` starts PostgreSQL + Redis.
 
