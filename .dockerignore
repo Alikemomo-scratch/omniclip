@@ -1,0 +1,42 @@
+# Git
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Build artifacts (rebuilt in container)
+dist/
+build/
+.next/
+
+# Development files
+*.md
+*.log
+*.log*
+.env*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Tests
+coverage/
+**/*.spec.ts
+**/*.test.ts
+
+# Turbo
+.turbo/
+
+# Extension (not needed in backend container)
+packages/extension/
+
+# Specs
+specs/
+.specify/
+.opencode/
+
+# OS
+.DS_Store
+Thumbs.db
