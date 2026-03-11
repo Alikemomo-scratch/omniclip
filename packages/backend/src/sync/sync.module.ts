@@ -6,6 +6,8 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import { SYNC_QUEUE_NAME } from './sync.constants';
 import { SyncProcessor } from './sync.processor';
+import { SyncScheduler } from './sync.scheduler';
+import { SyncController } from './sync.controller';
 import { ConnectionsModule } from '../connections';
 import { ContentModule } from '../content';
 
@@ -42,7 +44,8 @@ import { ContentModule } from '../content';
     ConnectionsModule,
     ContentModule,
   ],
-  providers: [SyncProcessor],
-  exports: [BullModule],
+  controllers: [SyncController],
+  providers: [SyncProcessor, SyncScheduler],
+  exports: [BullModule, SyncScheduler],
 })
 export class SyncModule {}
