@@ -30,6 +30,14 @@ export class ConnectionsController {
   }
 
   /**
+   * GET /connections/:id — Get a single connection by ID.
+   */
+  @Get(':id')
+  async findById(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.connectionsService.findById(req.user.userId, id);
+  }
+
+  /**
    * POST /connections — Create a new platform connection.
    */
   @Post()

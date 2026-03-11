@@ -8,6 +8,8 @@ import { SYNC_QUEUE_NAME } from './sync.constants';
 import { SyncProcessor } from './sync.processor';
 import { SyncScheduler } from './sync.scheduler';
 import { SyncController } from './sync.controller';
+import { ExtensionSyncController } from './extension-sync.controller';
+import { ExtensionSyncService } from './extension-sync.service';
 import { ConnectionsModule } from '../connections';
 import { ContentModule } from '../content';
 
@@ -44,8 +46,8 @@ import { ContentModule } from '../content';
     ConnectionsModule,
     ContentModule,
   ],
-  controllers: [SyncController],
-  providers: [SyncProcessor, SyncScheduler],
-  exports: [BullModule, SyncScheduler],
+  controllers: [SyncController, ExtensionSyncController],
+  providers: [SyncProcessor, SyncScheduler, ExtensionSyncService],
+  exports: [BullModule, SyncScheduler, ExtensionSyncService],
 })
 export class SyncModule {}
