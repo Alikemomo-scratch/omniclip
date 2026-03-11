@@ -17,6 +17,9 @@
     "db:studio": "drizzle-kit studio --config=../../drizzle.config.ts"
   },
   "dependencies": {
+    "@bull-board/api": "^6.20.3",
+    "@bull-board/express": "^6.20.3",
+    "@bull-board/nestjs": "^6.20.3",
     "@nestjs/bullmq": "^10.2.0",
     "@nestjs/common": "^10.4.0",
     "@nestjs/config": "^3.3.0",
