@@ -90,9 +90,9 @@
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Unit test for Xiaohongshu response parser — `packages/extension/test/content/xiaohongshu-parser.spec.ts`. Parse sample API response JSON → verify normalized ContentItemInput output (external_id, title, body, media_urls, metadata with likes/collects/comments, author, published_at).
-- [ ] T032 [P] [US2] Unit test for Twitter response parser — `packages/extension/test/content/twitter-parser.spec.ts`. Parse sample GraphQL response JSON → verify normalized ContentItemInput (tweet text, media, retweets, likes, hashtags).
-- [ ] T033 [P] [US2] Unit test for service worker buffer — `packages/extension/test/background/sync-buffer.spec.ts`. Test buffer add/read/clear in mock `chrome.storage.local`. Test buffer overflow handling (max 500 items). Test dedup within buffer.
+- [x] T031 [P] [US2] Unit test for Xiaohongshu response parser — `packages/extension/test/content/xiaohongshu-parser.spec.ts`. Parse sample API response JSON → verify normalized ContentItemInput output (external_id, title, body, media_urls, metadata with likes/collects/comments, author, published_at).
+- [x] T032 [P] [US2] Unit test for Twitter response parser — `packages/extension/test/content/twitter-parser.spec.ts`. Parse sample GraphQL response JSON → verify normalized ContentItemInput (tweet text, media, retweets, likes, hashtags).
+- [x] T033 [P] [US2] Unit test for service worker buffer — `packages/extension/test/background/sync-buffer.spec.ts`. Test buffer add/read/clear in mock `chrome.storage.local`. Test buffer overflow handling (max 500 items). Test dedup within buffer.
 - [ ] T034 [P] [US2] Integration test for extension sync endpoint — `packages/backend/test/integration/extension-sync.spec.ts`. Test `POST /api/v1/sync/extension` per extension-sync.md. Verify batch upsert, partial success (207), auth validation, rate limiting.
 - [ ] T035 [P] [US2] Integration test for heartbeat endpoint — `packages/backend/test/integration/heartbeat.spec.ts`. Test `POST /api/v1/sync/heartbeat` per extension-sync.md. Verify connection status update on error report.
 
