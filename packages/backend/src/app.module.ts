@@ -7,6 +7,7 @@ import { UsersModule } from './users';
 import { SyncModule } from './sync';
 import { ConnectorsModule } from './connectors';
 import { ConnectionsModule } from './connections';
+import { ContentModule } from './content';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConnectionsModule } from './connections';
     SyncModule,
     ConnectorsModule,
     ConnectionsModule,
+    ContentModule,
   ],
 })
 export class AppModule {}
