@@ -1,0 +1,245 @@
+'use client';
+
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { connectionsApi } from '@/lib/api-client';
+import type { Connection, ApiError } from '@/lib/api-client';
+
+const PLATFORMS = [
+  { id: 'github', label: 'GitHub', authField: 'personal_access_token', placeholder: 'ghp_...' },
+];
+
+export default function ConnectionsPage() {
+  const queryClient = useQueryClient();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState('');
+  const [authToken, setAuthToken] = useState('');
+  const [error, setError] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['connections'],
+    queryFn: () => connectionsApi.list(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: connectionsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connections'] });
+      setShowAddForm(false);
+      setSelectedPlatform('');
+      setAuthToken('');
+      setError('');
+    },
+    onError: (err: ApiError) => {
+      setError(err.message || 'Failed to create connection');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => connectionsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connections'] });
+    },
+  });
+
+  const testMutation = useMutation({
+    mutationFn: (id: string) => connectionsApi.test(id),
+  });
+
+  function handleAddConnection(e: React.FormEvent) {
+    e.preventDefault();
+    const platform = PLATFORMS.find((p) => p.id === selectedPlatform);
+    if (!platform) return;
+
+    createMutation.mutate({
+      platform: selectedPlatform,
+      connection_type: 'api',
+      auth_data: { [platform.authField]: authToken },
+    });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Connections</h1>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+        >
+          {showAddForm ? 'Cancel' : 'Add Connection'}
+        </button>
+      </div>
+
+      {/* Add connection form */}
+      {showAddForm && (
+        <div className="mb-6 p-6 bg-white rounded-lg shadow-sm border">
+          <h2 className="text-lg font-medium mb-4">Add New Connection</h2>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleAddConnection} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+              <select
+                value={selectedPlatform}
+                onChange={(e) => setSelectedPlatform(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a platform</option>
+                {PLATFORMS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedPlatform && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">API Token</label>
+                <input
+                  type="password"
+                  required
+                  value={authToken}
+                  onChange={(e) => setAuthToken(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={PLATFORMS.find((p) => p.id === selectedPlatform)?.placeholder}
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {createMutation.isPending ? 'Connecting...' : 'Connect'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Connections list */}
+      {isLoading ? (
+        <div className="text-center py-12 text-gray-500">Loading connections...</div>
+      ) : !data?.connections?.length ? (
+        <div className="text-center py-12 text-gray-500">
+          <p>No connections yet. Add one to start syncing content.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {data.connections.map((conn: Connection) => (
+            <ConnectionCard
+              key={conn.id}
+              connection={conn}
+              onTest={() => testMutation.mutate(conn.id)}
+              onDelete={() => {
+                if (confirm('Are you sure you want to disconnect?')) {
+                  deleteMutation.mutate(conn.id);
+                }
+              }}
+              testResult={
+                testMutation.variables === conn.id
+                  ? {
+                      loading: testMutation.isPending,
+                      data: testMutation.data,
+                      error: testMutation.error as ApiError | null,
+                    }
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConnectionCard({
+  connection,
+  onTest,
+  onDelete,
+  testResult,
+}: {
+  connection: Connection;
+  onTest: () => void;
+  onDelete: () => void;
+  testResult?: {
+    loading: boolean;
+    data?: { status: string; message: string } | null;
+    error?: ApiError | null;
+  };
+}) {
+  const statusColor =
+    connection.status === 'active'
+      ? 'bg-green-100 text-green-800'
+      : connection.status === 'error'
+        ? 'bg-red-100 text-red-800'
+        : 'bg-gray-100 text-gray-800';
+
+  return (
+    <div className="p-6 bg-white rounded-lg shadow-sm border">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div>
+            <h3 className="font-medium capitalize">{connection.platform}</h3>
+            <p className="text-sm text-gray-500">
+              Type: {connection.connection_type} | Sync every {connection.sync_interval_minutes}min
+            </p>
+            {connection.last_sync_at && (
+              <p className="text-sm text-gray-400">
+                Last synced: {new Date(connection.last_sync_at).toLocaleString()}
+              </p>
+            )}
+            {connection.last_error && (
+              <p className="text-sm text-red-500 mt-1">{connection.last_error}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
+            {connection.status}
+          </span>
+
+          <button
+            onClick={onTest}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            {testResult?.loading ? 'Testing...' : 'Test'}
+          </button>
+
+          <button
+            onClick={onDelete}
+            className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50"
+          >
+            Disconnect
+          </button>
+        </div>
+      </div>
+
+      {testResult?.data && (
+        <div
+          className={`mt-3 p-2 rounded text-sm ${
+            testResult.data.status === 'healthy'
+              ? 'bg-green-50 text-green-700'
+              : 'bg-yellow-50 text-yellow-700'
+          }`}
+        >
+          {testResult.data.status}: {testResult.data.message}
+        </div>
+      )}
+
+      {testResult?.error && (
+        <div className="mt-3 p-2 bg-red-50 text-red-700 rounded text-sm">
+          Test failed: {testResult.error.message}
+        </div>
+      )}
+    </div>
+  );
+}
