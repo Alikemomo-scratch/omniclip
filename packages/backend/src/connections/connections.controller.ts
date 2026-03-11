@@ -24,8 +24,8 @@ export class ConnectionsController {
    * GET /connections — List all connections for the current user.
    */
   @Get()
-  async findAll(@Request() req: { user: { sub: string } }) {
-    const connections = await this.connectionsService.findAll(req.user.sub);
+  async findAll(@Request() req: { user: { userId: string } }) {
+    const connections = await this.connectionsService.findAll(req.user.userId);
     return { connections };
   }
 
@@ -34,8 +34,8 @@ export class ConnectionsController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Request() req: { user: { sub: string } }, @Body() dto: CreateConnectionDto) {
-    return this.connectionsService.create(req.user.sub, dto);
+  async create(@Request() req: { user: { userId: string } }, @Body() dto: CreateConnectionDto) {
+    return this.connectionsService.create(req.user.userId, dto);
   }
 
   /**
@@ -43,11 +43,11 @@ export class ConnectionsController {
    */
   @Patch(':id')
   async update(
-    @Request() req: { user: { sub: string } },
+    @Request() req: { user: { userId: string } },
     @Param('id') id: string,
     @Body() dto: UpdateConnectionDto,
   ) {
-    return this.connectionsService.update(req.user.sub, id, dto);
+    return this.connectionsService.update(req.user.userId, id, dto);
   }
 
   /**
@@ -55,15 +55,15 @@ export class ConnectionsController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Request() req: { user: { sub: string } }, @Param('id') id: string) {
-    await this.connectionsService.remove(req.user.sub, id);
+  async remove(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+    await this.connectionsService.remove(req.user.userId, id);
   }
 
   /**
    * POST /connections/:id/test — Test connection health.
    */
   @Post(':id/test')
-  async testConnection(@Request() req: { user: { sub: string } }, @Param('id') id: string) {
-    return this.connectionsService.testConnection(req.user.sub, id);
+  async testConnection(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.connectionsService.testConnection(req.user.userId, id);
   }
 }
