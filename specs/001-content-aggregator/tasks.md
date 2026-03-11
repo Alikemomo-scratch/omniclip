@@ -61,10 +61,10 @@
 
 > Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T018 [P] [US1] Integration test for auth flow — `packages/backend/test/integration/auth.spec.ts`. Test register → login → refresh → access protected route → RLS isolation between users. Use Testcontainers (PostgreSQL).
-- [ ] T019 [P] [US1] Integration test for GitHub connector — `packages/backend/test/integration/github-connector.spec.ts`. Test fetchContent with mocked GitHub API responses → verify normalized ContentItemInput output. Test healthCheck with valid/invalid tokens.
-- [ ] T020 [P] [US1] Integration test for connection management — `packages/backend/test/integration/connections.spec.ts`. Test create/list/update/delete/test connections. Verify RLS isolation (user A cannot see user B's connections).
-- [ ] T021 [P] [US1] Integration test for content feed — `packages/backend/test/integration/content-feed.spec.ts`. Test paginated feed query, platform filter, date range filter, search. Verify chronological sort. Verify deduplication (upsert).
+- [x] T018 [P] [US1] Integration test for auth flow — `packages/backend/test/integration/auth.spec.ts`. Test register → login → refresh → access protected route → RLS isolation between users. Use Testcontainers (PostgreSQL).
+- [x] T019 [P] [US1] Integration test for GitHub connector — `packages/backend/test/integration/github-connector.spec.ts`. Test fetchContent with mocked GitHub API responses → verify normalized ContentItemInput output. Test healthCheck with valid/invalid tokens.
+- [x] T020 [P] [US1] Integration test for connection management — `packages/backend/test/integration/connections.spec.ts`. Test create/list/update/delete/test connections. Verify RLS isolation (user A cannot see user B's connections).
+- [x] T021 [P] [US1] Integration test for content feed — `packages/backend/test/integration/content-feed.spec.ts`. Test paginated feed query, platform filter, date range filter, search. Verify chronological sort. Verify deduplication (upsert).
 
 ### Implementation for User Story 1
 
