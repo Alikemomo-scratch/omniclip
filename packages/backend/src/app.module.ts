@@ -5,6 +5,7 @@ import { DatabaseModule } from './common/database';
 import { AuthModule } from './auth';
 import { UsersModule } from './users';
 import { SyncModule } from './sync';
+import { ConnectorsModule } from './connectors';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SyncModule } from './sync';
     AuthModule,
     UsersModule,
     SyncModule,
+    ConnectorsModule,
   ],
 })
 export class AppModule {}

@@ -18,14 +18,14 @@
 
 **Purpose**: Monorepo initialization, tooling, Docker infrastructure
 
-- [X] T001 Initialize Turborepo monorepo with `packages/backend`, `packages/frontend`, `packages/extension`, `packages/shared` workspaces. Create root `package.json`, `turbo.json`, `tsconfig.base.json`, `.gitignore`, `.nvmrc` (Node 20 LTS). Package manager: pnpm.
-- [X] T002 [P] Configure `packages/backend` — Initialize NestJS 10.x project with TypeScript. Install core deps: `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/config`, `@nestjs/bullmq`, `drizzle-orm`, `pg`, `bullmq`, `bcrypt`, `@nestjs/jwt`, `@nestjs/passport`, `class-validator`, `class-transformer`. Create `src/main.ts`, `src/app.module.ts`.
-- [X] T003 [P] Configure `packages/frontend` — Initialize Next.js 15.x with App Router, React 19, TypeScript. Install: `tailwindcss@4`, `@tanstack/react-query@5`, `next-intl`. Initialize shadcn/ui. Create base layout `src/app/layout.tsx`.
-- [X] T004 [P] Configure `packages/extension` — Create Manifest V3 Chrome extension scaffold. Create `src/manifest.json` with strict `host_permissions` (xiaohongshu.com, x.com, twitter.com). Create `src/background/service-worker.ts`, `src/popup/index.html`. Build tooling: Vite or webpack for extension bundling.
-- [X] T005 [P] Configure `packages/shared` — Create shared TypeScript package with `types/`, `dto/`, `constants/` directories. Export platform IDs, content types, sync payload DTOs, connector interfaces as defined in `contracts/connector.md`.
-- [X] T006 [P] Create `docker-compose.yml` at repo root — PostgreSQL 16 (`localhost:5432`, db: `aggregator_dev`, user: `postgres`) + Redis 7 (`localhost:6379`). Add healthcheck for both services.
-- [X] T007 [P] Configure development tooling — ESLint (flat config), Prettier, Vitest (root + per-package), Playwright (frontend E2E). Create root scripts: `dev`, `build`, `test`, `lint`, `format`, `typecheck`.
-- [X] T008 [P] Create environment config — `packages/backend/.env.example` and `packages/frontend/.env.example` per quickstart.md. Add `packages/backend/src/common/config/` with typed NestJS `ConfigModule` setup.
+- [x] T001 Initialize Turborepo monorepo with `packages/backend`, `packages/frontend`, `packages/extension`, `packages/shared` workspaces. Create root `package.json`, `turbo.json`, `tsconfig.base.json`, `.gitignore`, `.nvmrc` (Node 20 LTS). Package manager: pnpm.
+- [x] T002 [P] Configure `packages/backend` — Initialize NestJS 10.x project with TypeScript. Install core deps: `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/config`, `@nestjs/bullmq`, `drizzle-orm`, `pg`, `bullmq`, `bcrypt`, `@nestjs/jwt`, `@nestjs/passport`, `class-validator`, `class-transformer`. Create `src/main.ts`, `src/app.module.ts`.
+- [x] T003 [P] Configure `packages/frontend` — Initialize Next.js 15.x with App Router, React 19, TypeScript. Install: `tailwindcss@4`, `@tanstack/react-query@5`, `next-intl`. Initialize shadcn/ui. Create base layout `src/app/layout.tsx`.
+- [x] T004 [P] Configure `packages/extension` — Create Manifest V3 Chrome extension scaffold. Create `src/manifest.json` with strict `host_permissions` (xiaohongshu.com, x.com, twitter.com). Create `src/background/service-worker.ts`, `src/popup/index.html`. Build tooling: Vite or webpack for extension bundling.
+- [x] T005 [P] Configure `packages/shared` — Create shared TypeScript package with `types/`, `dto/`, `constants/` directories. Export platform IDs, content types, sync payload DTOs, connector interfaces as defined in `contracts/connector.md`.
+- [x] T006 [P] Create `docker-compose.yml` at repo root — PostgreSQL 16 (`localhost:5432`, db: `aggregator_dev`, user: `postgres`) + Redis 7 (`localhost:6379`). Add healthcheck for both services.
+- [x] T007 [P] Configure development tooling — ESLint (flat config), Prettier, Vitest (root + per-package), Playwright (frontend E2E). Create root scripts: `dev`, `build`, `test`, `lint`, `format`, `typecheck`.
+- [x] T008 [P] Create environment config — `packages/backend/.env.example` and `packages/frontend/.env.example` per quickstart.md. Add `packages/backend/src/common/config/` with typed NestJS `ConfigModule` setup.
 
 **Checkpoint**: `pnpm install` succeeds, `pnpm build` compiles all 4 packages, `docker-compose up -d` starts PostgreSQL + Redis.
 
@@ -37,15 +37,15 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T009 Create Drizzle ORM schema definitions in `packages/backend/src/common/database/schema/` — Define all 6 tables (`users`, `platform_connections`, `content_items`, `digests`, `digest_items`, `sync_jobs`) per data-model.md. Create `drizzle.config.ts` at repo root.
-- [ ] T010 Generate and apply initial database migration — `packages/backend/drizzle/` migrations directory. Include all tables, indexes, composite unique constraints (`user_id, platform, external_id`), and foreign keys.
-- [ ] T011 Implement Row-Level Security (RLS) — SQL migration to enable RLS on all user-scoped tables. Create RLS policies per data-model.md. Implement Drizzle `setLocal` middleware in `packages/backend/src/common/database/rls.middleware.ts` to inject `app.current_user_id` session variable per request.
-- [ ] T012 [P] Implement database module — `packages/backend/src/common/database/database.module.ts`. Drizzle provider with connection pooling. Transaction helper with RLS context.
-- [ ] T013 [P] Implement authentication module — `packages/backend/src/auth/`. JWT strategy (`@nestjs/jwt`, `@nestjs/passport`). Endpoints: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` per rest-api.md. Password hashing with bcrypt. Refresh token rotation. `JwtAuthGuard` for protected routes.
-- [ ] T014 [P] Implement global error handling — `packages/backend/src/common/filters/http-exception.filter.ts`. Unified error response format per rest-api.md (`statusCode`, `error`, `message`, `details[]`). Validation pipe with `class-validator`.
-- [ ] T015 [P] Implement users module — `packages/backend/src/users/`. `GET /users/me`, `PATCH /users/me` endpoints per rest-api.md. User service with RLS-scoped queries.
-- [ ] T016 [P] Implement BullMQ infrastructure — `packages/backend/src/sync/sync.module.ts`. Queue setup with Redis connection. Bull Board dashboard at `/admin/queues` (dev only). Base processor skeleton.
-- [ ] T017 [P] Implement connector registry — `packages/backend/src/connectors/connector.registry.ts` and `packages/backend/src/connectors/interfaces/` per connector.md. `ConnectorRegistry` service, `PlatformConnector` interface, `ConnectorError` class, `ConnectorErrorCode` type.
+- [x] T009 Create Drizzle ORM schema definitions in `packages/backend/src/common/database/schema/` — Define all 6 tables (`users`, `platform_connections`, `content_items`, `digests`, `digest_items`, `sync_jobs`) per data-model.md. Create `drizzle.config.ts` at repo root.
+- [x] T010 Generate and apply initial database migration — `packages/backend/drizzle/` migrations directory. Include all tables, indexes, composite unique constraints (`user_id, platform, external_id`), and foreign keys.
+- [x] T011 Implement Row-Level Security (RLS) — SQL migration to enable RLS on all user-scoped tables. Create RLS policies per data-model.md. Implement Drizzle `setLocal` middleware in `packages/backend/src/common/database/rls.middleware.ts` to inject `app.current_user_id` session variable per request.
+- [x] T012 [P] Implement database module — `packages/backend/src/common/database/database.module.ts`. Drizzle provider with connection pooling. Transaction helper with RLS context.
+- [x] T013 [P] Implement authentication module — `packages/backend/src/auth/`. JWT strategy (`@nestjs/jwt`, `@nestjs/passport`). Endpoints: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` per rest-api.md. Password hashing with bcrypt. Refresh token rotation. `JwtAuthGuard` for protected routes.
+- [x] T014 [P] Implement global error handling — `packages/backend/src/common/filters/http-exception.filter.ts`. Unified error response format per rest-api.md (`statusCode`, `error`, `message`, `details[]`). Validation pipe with `class-validator`.
+- [x] T015 [P] Implement users module — `packages/backend/src/users/`. `GET /users/me`, `PATCH /users/me` endpoints per rest-api.md. User service with RLS-scoped queries.
+- [x] T016 [P] Implement BullMQ infrastructure — `packages/backend/src/sync/sync.module.ts`. Queue setup with Redis connection. Bull Board dashboard at `/admin/queues` (dev only). Base processor skeleton.
+- [x] T017 [P] Implement connector registry — `packages/backend/src/connectors/connector.registry.ts` and `packages/backend/src/connectors/interfaces/` per connector.md. `ConnectorRegistry` service, `PlatformConnector` interface, `ConnectorError` class, `ConnectorErrorCode` type.
 
 **Checkpoint**: Auth endpoints work (`register → login → access protected route`). RLS isolates data between two test users. BullMQ dashboard accessible. Connector registry accepts mock registrations.
 
@@ -275,15 +275,15 @@ Phase 2 (Foundational)
 
 ## Task Count Summary
 
-| Phase | Tasks | Priority |
-|-------|-------|----------|
-| Phase 1: Setup | T001–T008 (8) | — |
-| Phase 2: Foundational | T009–T017 (9) | — |
-| Phase 3: US1 (GitHub + Feed) | T018–T030 (13) | P1 🎯 |
-| Phase 4: US2 (Extension) | T031–T044 (14) | P1 🎯 |
-| Phase 5: US3 (YouTube) | T045–T049 (5) | P2 |
-| Phase 6: US4 (AI Digest) | T050–T056 (7) | P2 |
-| Phase 7: US5 (Multi-User) | T057–T059 (3) | P3 |
-| Phase 8: US6 (Extensibility) | T060–T062 (3) | P3 |
-| Phase 9: Polish | T063–T068 (6) | — |
-| **Total** | **68 tasks** | |
+| Phase                        | Tasks          | Priority |
+| ---------------------------- | -------------- | -------- |
+| Phase 1: Setup               | T001–T008 (8)  | —        |
+| Phase 2: Foundational        | T009–T017 (9)  | —        |
+| Phase 3: US1 (GitHub + Feed) | T018–T030 (13) | P1 🎯    |
+| Phase 4: US2 (Extension)     | T031–T044 (14) | P1 🎯    |
+| Phase 5: US3 (YouTube)       | T045–T049 (5)  | P2       |
+| Phase 6: US4 (AI Digest)     | T050–T056 (7)  | P2       |
+| Phase 7: US5 (Multi-User)    | T057–T059 (3)  | P3       |
+| Phase 8: US6 (Extensibility) | T060–T062 (3)  | P3       |
+| Phase 9: Polish              | T063–T068 (6)  | —        |
+| **Total**                    | **68 tasks**   |          |
