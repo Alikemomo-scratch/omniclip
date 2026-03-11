@@ -1,0 +1,103 @@
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
+import { DRIZZLE } from '../common/database/database.constants';
+import type { DrizzleDB } from '../common/database/rls.middleware';
+import { users } from '../common/database/schema';
+import type { UpdateUserDto } from './dto';
+
+@Injectable()
+export class UsersService {
+  constructor(@Inject(DRIZZLE) private readonly db: DrizzleDB) {}
+
+  async findById(userId: string) {
+    const [user] = await this.db
+      .select({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        preferredLanguage: users.preferredLanguage,
+        digestFrequency: users.digestFrequency,
+        digestTime: users.digestTime,
+        timezone: users.timezone,
+        contentRetentionDays: users.contentRetentionDays,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.formatUser(user);
+  }
+
+  async update(userId: string, dto: UpdateUserDto) {
+    const updateData: Record<string, unknown> = {};
+
+    if (dto.display_name !== undefined) updateData.displayName = dto.display_name;
+    if (dto.preferred_language !== undefined) updateData.preferredLanguage = dto.preferred_language;
+    if (dto.digest_frequency !== undefined) updateData.digestFrequency = dto.digest_frequency;
+    if (dto.digest_time !== undefined) updateData.digestTime = dto.digest_time;
+    if (dto.timezone !== undefined) updateData.timezone = dto.timezone;
+    if (dto.content_retention_days !== undefined)
+      updateData.contentRetentionDays = dto.content_retention_days;
+
+    if (Object.keys(updateData).length === 0) {
+      return this.findById(userId);
+    }
+
+    updateData.updatedAt = new Date();
+
+    const [user] = await this.db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        preferredLanguage: users.preferredLanguage,
+        digestFrequency: users.digestFrequency,
+        digestTime: users.digestTime,
+        timezone: users.timezone,
+        contentRetentionDays: users.contentRetentionDays,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.formatUser(user);
+  }
+
+  private formatUser(user: {
+    id: string;
+    email: string;
+    displayName: string;
+    preferredLanguage: string;
+    digestFrequency: string;
+    digestTime: string;
+    timezone: string;
+    contentRetentionDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: user.id,
+      email: user.email,
+      display_name: user.displayName,
+      preferred_language: user.preferredLanguage,
+      digest_frequency: user.digestFrequency,
+      digest_time: user.digestTime,
+      timezone: user.timezone,
+      content_retention_days: user.contentRetentionDays,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    };
+  }
+}
