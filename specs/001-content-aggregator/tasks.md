@@ -120,14 +120,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] Integration test for YouTube connector — `packages/backend/test/integration/youtube-connector.spec.ts`. Test fetchContent with mocked YouTube Data API responses. Test OAuth token refresh. Test quota tracking.
-- [ ] T046 [P] [US3] Unit test for YouTube response parser — `packages/backend/test/unit/youtube-parser.spec.ts`. Parse sample YouTube API JSON → verify ContentItemInput (video title, channel, duration, view count, thumbnail).
+- [x] T045 [P] [US3] Integration test for YouTube connector — `packages/backend/test/integration/youtube-connector.spec.ts`. Test fetchContent with mocked YouTube Data API responses. Test OAuth token refresh. Test quota tracking.
+- [x] T046 [P] [US3] Unit test for YouTube response parser — `packages/backend/test/unit/youtube-parser.spec.ts`. Parse sample YouTube API JSON → verify ContentItemInput (video title, channel, duration, view count, thumbnail).
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Implement YouTube connector — `packages/backend/src/connectors/youtube/youtube.connector.ts`. Implement `PlatformConnector`: `healthCheck` (verify OAuth token), `fetchContent` (subscriptions → channel videos via Activities API), `parseResponse`. OAuth 2.0 token refresh flow. Track API quota usage (10,000 units/day). Content types: `video`.
-- [ ] T048 [US3] Implement YouTube OAuth flow — `packages/backend/src/auth/youtube-oauth.controller.ts`. OAuth 2.0 consent screen redirect → callback → store encrypted tokens in `platform_connections.auth_data`. Frontend: "Connect YouTube" button → redirect → callback page.
-- [ ] T049 [US3] Frontend — YouTube connection flow — `packages/frontend/src/app/(dashboard)/connections/youtube/callback/page.tsx`. OAuth callback handler. Display success/error. Redirect to connections page.
+- [x] T047 [US3] Implement YouTube connector — `packages/backend/src/connectors/youtube/youtube.connector.ts`. Implement `PlatformConnector`: `healthCheck` (verify OAuth token), `fetchContent` (subscriptions → channel videos via Activities API), `parseResponse`. OAuth 2.0 token refresh flow. Track API quota usage (10,000 units/day). Content types: `video`.
+- [x] T048 [US3] Implement YouTube OAuth flow — `packages/backend/src/auth/youtube-oauth.controller.ts`. OAuth 2.0 consent screen redirect → callback → store encrypted tokens in `platform_connections.auth_data`. Frontend: "Connect YouTube" button → redirect → callback page.
+- [x] T049 [US3] Frontend — YouTube connection flow — `packages/frontend/src/app/(dashboard)/connections/youtube/callback/page.tsx`. OAuth callback handler. Display success/error. Redirect to connections page.
 
 **Checkpoint**: Connect YouTube → OAuth flow completes → scheduled sync fetches subscription videos → videos appear in feed with thumbnails and metadata. Works without browser open.
 

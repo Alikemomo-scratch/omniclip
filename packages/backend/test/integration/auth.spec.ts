@@ -11,6 +11,7 @@ import request from 'supertest';
 import { AuthModule } from '../../src/auth/auth.module';
 import { UsersModule } from '../../src/users/users.module';
 import { DatabaseModule } from '../../src/common/database/database.module';
+import { ConnectorsModule } from '../../src/connectors/connectors.module';
 import {
   startTestDatabase,
   createTestApp,
@@ -28,7 +29,10 @@ describe('Auth Flow (Integration)', () => {
     connectionString = result.connectionString;
     testPool = result.pool;
 
-    app = await createTestApp([DatabaseModule, AuthModule, UsersModule], connectionString);
+    app = await createTestApp(
+      [DatabaseModule, ConnectorsModule, AuthModule, UsersModule],
+      connectionString,
+    );
   }, 60_000); // Container startup can take time
 
   afterAll(async () => {
