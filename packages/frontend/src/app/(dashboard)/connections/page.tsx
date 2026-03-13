@@ -5,8 +5,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { connectionsApi } from '@/lib/api-client';
 import type { Connection, ApiError } from '@/lib/api-client';
 
-const PLATFORMS = [
-  { id: 'github', label: 'GitHub', authField: 'personal_access_token', placeholder: 'ghp_...' },
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+interface PlatformConfig {
+  id: string;
+  label: string;
+  authType: 'token' | 'oauth';
+  authField?: string;
+  placeholder?: string;
+}
+
+const PLATFORMS: PlatformConfig[] = [
+  {
+    id: 'github',
+    label: 'GitHub',
+    authType: 'token',
+    authField: 'personal_access_token',
+    placeholder: 'ghp_...',
+  },
+  { id: 'youtube', label: 'YouTube', authType: 'oauth' },
 ];
 
 export default function ConnectionsPage() {
@@ -46,10 +63,17 @@ export default function ConnectionsPage() {
     mutationFn: (id: string) => connectionsApi.test(id),
   });
 
+  function handleConnectOAuth(platformId: string) {
+    // Redirect to backend OAuth endpoint — the backend will redirect to the provider's consent screen
+    const token = localStorage.getItem('omniclip_token');
+    // We need to pass the JWT token as a query parameter since the redirect won't have cookies
+    window.location.href = `${API_BASE}/auth/${platformId}?token=${encodeURIComponent(token || '')}`;
+  }
+
   function handleAddConnection(e: React.FormEvent) {
     e.preventDefault();
     const platform = PLATFORMS.find((p) => p.id === selectedPlatform);
-    if (!platform) return;
+    if (!platform || !platform.authField) return;
 
     createMutation.mutate({
       platform: selectedPlatform,
@@ -99,27 +123,54 @@ export default function ConnectionsPage() {
               </select>
             </div>
 
-            {selectedPlatform && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">API Token</label>
-                <input
-                  type="password"
-                  required
-                  value={authToken}
-                  onChange={(e) => setAuthToken(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={PLATFORMS.find((p) => p.id === selectedPlatform)?.placeholder}
-                />
-              </div>
-            )}
+            {selectedPlatform &&
+              (() => {
+                const platform = PLATFORMS.find((p) => p.id === selectedPlatform);
+                if (!platform) return null;
 
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-            >
-              {createMutation.isPending ? 'Connecting...' : 'Connect'}
-            </button>
+                if (platform.authType === 'oauth') {
+                  return (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-3">
+                        {platform.label} uses OAuth for authentication. Click the button below to
+                        authorize.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleConnectOAuth(platform.id)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
+                      >
+                        Connect {platform.label} via OAuth
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        API Token
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={authToken}
+                        onChange={(e) => setAuthToken(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={platform.placeholder}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={createMutation.isPending}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                    >
+                      {createMutation.isPending ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </>
+                );
+              })()}
           </form>
         </div>
       )}

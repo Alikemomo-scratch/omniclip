@@ -173,7 +173,8 @@ export class ConnectionsService {
    * Test a connection's health by invoking the connector's healthCheck.
    */
   async testConnection(userId: string, connectionId: string) {
-    const connection = await this.findById(userId, connectionId);
+    // Use findByIdWithAuth to get auth_data — needed by connectors like YouTube
+    const connection = await this.findByIdWithAuth(userId, connectionId);
 
     const connector = this.connectorRegistry.get(
       connection.platform as 'github' | 'youtube' | 'twitter' | 'xiaohongshu',
@@ -183,11 +184,11 @@ export class ConnectionsService {
       id: connection.id,
       user_id: userId,
       platform: connection.platform as 'github' | 'youtube' | 'twitter' | 'xiaohongshu',
-      connection_type: connection.connection_type as 'api' | 'extension',
+      connection_type: connection.connectionType as 'api' | 'extension',
       status: connection.status as 'active' | 'error' | 'disconnected',
-      auth_data: null, // auth_data not selected for security; re-fetch if needed
-      sync_interval_minutes: connection.sync_interval_minutes,
-      last_sync_at: connection.last_sync_at,
+      auth_data: (connection.authData as Record<string, unknown>) || null,
+      sync_interval_minutes: connection.syncIntervalMinutes,
+      last_sync_at: connection.lastSyncAt,
     });
   }
 
