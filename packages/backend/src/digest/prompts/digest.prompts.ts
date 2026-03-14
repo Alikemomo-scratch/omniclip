@@ -1,0 +1,184 @@
+/**
+ * Prompt templates for the AI digest pipeline.
+ *
+ * Pipeline:
+ * 1. MAP: Summarize each content item individually
+ * 2. GROUP: Cluster summaries by topic
+ * 3. REDUCE: Generate topic group summaries + cross-platform trend analysis
+ */
+
+export interface ContentItemForDigest {
+  id: string;
+  platform: string;
+  content_type: string;
+  title: string | null;
+  body: string | null;
+  author_name: string | null;
+  original_url: string;
+  published_at: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface ItemSummary {
+  id: string;
+  platform: string;
+  summary: string;
+}
+
+export interface TopicGroup {
+  topic: string;
+  summary: string;
+  item_ids: string[];
+  platforms: string[];
+}
+
+export interface DigestResult {
+  topic_groups: TopicGroup[];
+  trend_analysis: string;
+  item_count: number;
+}
+
+/**
+ * Build the MAP prompt: summarize a single content item.
+ */
+export function buildMapPrompt(item: ContentItemForDigest, language: string): string {
+  const langInstruction =
+    language === 'zh' ? 'Please respond in Chinese (中文).' : `Please respond in ${language}.`;
+
+  const parts = [`Summarize the following content item in 1-2 sentences. ${langInstruction}`];
+  parts.push('');
+  parts.push(`Platform: ${item.platform}`);
+  parts.push(`Type: ${item.content_type}`);
+  if (item.title) parts.push(`Title: ${item.title}`);
+  if (item.author_name) parts.push(`Author: ${item.author_name}`);
+  if (item.body) {
+    // Truncate body to avoid exceeding token limits
+    const truncated = item.body.length > 2000 ? item.body.slice(0, 2000) + '...' : item.body;
+    parts.push(`Content: ${truncated}`);
+  }
+  if (item.metadata && Object.keys(item.metadata).length > 0) {
+    // Include selected metadata
+    const meta: string[] = [];
+    if ('view_count' in item.metadata) meta.push(`Views: ${item.metadata.view_count}`);
+    if ('like_count' in item.metadata) meta.push(`Likes: ${item.metadata.like_count}`);
+    if ('stars' in item.metadata) meta.push(`Stars: ${item.metadata.stars}`);
+    if ('likes' in item.metadata) meta.push(`Likes: ${item.metadata.likes}`);
+    if ('tags' in item.metadata) meta.push(`Tags: ${(item.metadata.tags as string[]).join(', ')}`);
+    if (meta.length > 0) parts.push(`Metadata: ${meta.join(', ')}`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Build the GROUP + REDUCE prompt: cluster summaries into topics and analyze trends.
+ */
+export function buildReducePrompt(summaries: ItemSummary[], language: string): string {
+  const langInstruction =
+    language === 'zh' ? 'Please respond in Chinese (中文).' : `Please respond in ${language}.`;
+
+  const summaryLines = summaries.map(
+    (s, i) => `[${i + 1}] (id: ${s.id}, platform: ${s.platform}) ${s.summary}`,
+  );
+
+  return `You are an AI content curator. Given the following ${summaries.length} content item summaries from multiple platforms, do the following:
+
+1. Group them by topic/theme (each item should belong to exactly one group)
+2. For each group, write a concise summary highlighting key insights
+3. Write a brief cross-platform trend analysis paragraph
+
+${langInstruction}
+
+Content Summaries:
+${summaryLines.join('\n')}
+
+Respond in this exact JSON format (no markdown, no code fences):
+{
+  "topic_groups": [
+    {
+      "topic": "Topic Name",
+      "summary": "Group summary...",
+      "item_ids": ["id1", "id2"],
+      "platforms": ["github", "youtube"]
+    }
+  ],
+  "trend_analysis": "Cross-platform trend analysis..."
+}`;
+}
+
+/**
+ * Build a prompt for the simple case: <5 items, just individual summaries.
+ */
+export function buildSimpleSummaryPrompt(items: ContentItemForDigest[], language: string): string {
+  const langInstruction =
+    language === 'zh' ? 'Please respond in Chinese (中文).' : `Please respond in ${language}.`;
+
+  const itemLines = items.map((item, i) => {
+    const parts = [`[${i + 1}] (id: ${item.id}, platform: ${item.platform})`];
+    if (item.title) parts.push(`Title: ${item.title}`);
+    if (item.body) {
+      const truncated = item.body.length > 1000 ? item.body.slice(0, 1000) + '...' : item.body;
+      parts.push(`Content: ${truncated}`);
+    }
+    return parts.join('\n');
+  });
+
+  return `Summarize each of the following ${items.length} content items individually. ${langInstruction}
+
+${itemLines.join('\n\n')}
+
+Respond in this exact JSON format (no markdown, no code fences):
+{
+  "topic_groups": [
+    {
+      "topic": "Individual Summaries",
+      "summary": "Summary of all items...",
+      "item_ids": ["id1", "id2"],
+      "platforms": ["platform1"]
+    }
+  ],
+  "trend_analysis": ""
+}`;
+}
+
+/**
+ * Batch items for the MAP phase to reduce API calls.
+ * Groups items into batches of the given size.
+ */
+export function batchItems<T>(items: T[], batchSize: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    batches.push(items.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/**
+ * Build a batch MAP prompt: summarize multiple items in one call.
+ */
+export function buildBatchMapPrompt(items: ContentItemForDigest[], language: string): string {
+  const langInstruction =
+    language === 'zh' ? 'Please respond in Chinese (中文).' : `Please respond in ${language}.`;
+
+  const itemLines = items.map((item, i) => {
+    const parts = [
+      `[${i + 1}] (id: ${item.id}, platform: ${item.platform}, type: ${item.content_type})`,
+    ];
+    if (item.title) parts.push(`  Title: ${item.title}`);
+    if (item.author_name) parts.push(`  Author: ${item.author_name}`);
+    if (item.body) {
+      const truncated = item.body.length > 1000 ? item.body.slice(0, 1000) + '...' : item.body;
+      parts.push(`  Content: ${truncated}`);
+    }
+    return parts.join('\n');
+  });
+
+  return `Summarize each of the following content items in 1-2 sentences each. ${langInstruction}
+
+${itemLines.join('\n\n')}
+
+Respond in this exact JSON format (no markdown, no code fences):
+[
+  { "id": "item_id", "summary": "1-2 sentence summary" }
+]`;
+}
