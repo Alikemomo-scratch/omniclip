@@ -36,7 +36,9 @@ export default function SettingsPage() {
       display_name: formData.get('display_name') as string,
       preferred_language: formData.get('preferred_language') as string,
       digest_frequency: formData.get('digest_frequency') as string,
+      digest_time: formData.get('digest_time') as string,
       timezone: formData.get('timezone') as string,
+      content_retention_days: Number(formData.get('content_retention_days')),
     });
   }
 
@@ -130,6 +132,22 @@ export default function SettingsPage() {
         </div>
 
         <div>
+          <label htmlFor="digest_time" className="block text-sm font-medium text-gray-700 mb-1">
+            Digest Time
+          </label>
+          <input
+            id="digest_time"
+            name="digest_time"
+            type="time"
+            defaultValue={user.digest_time}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Time of day to generate your automatic digest.
+          </p>
+        </div>
+
+        <div>
           <label htmlFor="timezone" className="block text-sm font-medium text-gray-700 mb-1">
             Timezone
           </label>
@@ -150,6 +168,27 @@ export default function SettingsPage() {
             <option value="Europe/London">London</option>
             <option value="Europe/Berlin">Central European</option>
           </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="content_retention_days"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Content Retention (days)
+          </label>
+          <input
+            id="content_retention_days"
+            name="content_retention_days"
+            type="number"
+            min={7}
+            max={365}
+            defaultValue={user.content_retention_days}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            How many days to keep collected content (7&ndash;365).
+          </p>
         </div>
 
         <div className="pt-2">

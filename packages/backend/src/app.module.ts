@@ -8,6 +8,7 @@ import { SyncModule } from './sync';
 import { ConnectorsModule } from './connectors';
 import { ConnectionsModule } from './connections';
 import { ContentModule } from './content';
+import { DigestModule } from './digest';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ContentModule } from './content';
     ConnectorsModule,
     ConnectionsModule,
     ContentModule,
+    DigestModule,
   ],
 })
 export class AppModule {}
