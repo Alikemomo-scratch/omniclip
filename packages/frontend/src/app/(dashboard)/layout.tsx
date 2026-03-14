@@ -6,6 +6,7 @@ import { authApi } from '@/lib/api-client';
 
 const navItems = [
   { href: '/feed', label: 'Feed' },
+  { href: '/digests', label: 'Digests' },
   { href: '/connections', label: 'Connections' },
   { href: '/settings', label: 'Settings' },
 ];

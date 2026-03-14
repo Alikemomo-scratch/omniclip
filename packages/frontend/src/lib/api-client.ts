@@ -279,7 +279,9 @@ export interface User {
   display_name: string;
   preferred_language: string;
   digest_frequency: string;
+  digest_time: string;
   timezone: string;
+  content_retention_days: number;
 }
 
 export const usersApi = {
@@ -314,5 +316,72 @@ export const syncApi = {
     });
     const qs = params.toString();
     return apiClient.get(`/sync/jobs${qs ? `?${qs}` : ''}`);
+  },
+};
+
+// ====================================
+// Digests API
+// ====================================
+export interface TopicGroup {
+  topic: string;
+  summary: string;
+  item_ids: string[];
+  platforms: string[];
+}
+
+export interface Digest {
+  id: string;
+  digest_type: string;
+  period_start: string;
+  period_end: string;
+  language: string;
+  item_count: number;
+  status: string;
+  generated_at: string | null;
+  topic_groups: TopicGroup[];
+  trend_analysis: string | null;
+  created_at: string;
+}
+
+export interface DigestsResponse {
+  digests: Digest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
+export interface GenerateDigestRequest {
+  digest_type: 'daily' | 'weekly';
+  period_start: string;
+  period_end: string;
+}
+
+export interface GenerateDigestResponse {
+  id: string;
+  status: string;
+  message: string;
+}
+
+export const digestsApi = {
+  list(query: { page?: number; limit?: number; type?: string } = {}): Promise<DigestsResponse> {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        params.set(key, String(value));
+      }
+    });
+    const qs = params.toString();
+    return apiClient.get(`/digests${qs ? `?${qs}` : ''}`);
+  },
+
+  getById(id: string): Promise<Digest> {
+    return apiClient.get(`/digests/${id}`);
+  },
+
+  generate(data: GenerateDigestRequest): Promise<GenerateDigestResponse> {
+    return apiClient.post('/digests/generate', data);
   },
 };

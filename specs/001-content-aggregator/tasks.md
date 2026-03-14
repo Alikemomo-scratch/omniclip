@@ -141,16 +141,16 @@
 
 ### Tests for User Story 4
 
-- [ ] T050 [P] [US4] Integration test for digest generation — `packages/backend/test/integration/digest.spec.ts`. Test with 20+ mock content items → verify digest output structure (topic_groups, trend_analysis, item_count). Test with <5 items → individual summaries. Test language preference.
-- [ ] T051 [P] [US4] Unit test for digest prompt construction — `packages/backend/test/unit/digest-prompts.spec.ts`. Test map-reduce prompt building. Verify content grouping logic.
+- [x] T050 [P] [US4] Integration test for digest generation — `packages/backend/test/integration/digest.spec.ts`. Test with 20+ mock content items → verify digest output structure (topic_groups, trend_analysis, item_count). Test with <5 items → individual summaries. Test language preference.
+- [x] T051 [P] [US4] Unit test for digest prompt construction — `packages/backend/test/unit/digest-prompts.spec.ts`. Test map-reduce prompt building. Verify content grouping logic.
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] Implement digest module — `packages/backend/src/digest/digest.module.ts`. LangChain.js setup with configurable provider (OpenAI default, user can set API key). Map-reduce pipeline: summarize individual items → group by topic → generate cross-platform trend analysis. Handle <5 items edge case (individual summaries only).
-- [ ] T053 [US4] Implement digest scheduling — `packages/backend/src/digest/digest.scheduler.ts`. BullMQ job: query user's `digest_frequency` + `digest_time` + `timezone` → create repeatable job. On trigger: fetch uncovered content items for period → run digest pipeline → save to `digests` table → link via `digest_items`.
-- [ ] T054 [US4] Implement digest API endpoints — `packages/backend/src/digest/digest.controller.ts`. `GET /digests` (paginated list), `POST /digests/generate` (manual trigger → 202 Accepted), `GET /digests/:id` (full digest), `GET /digests/:id/stream` (SSE for real-time generation progress).
-- [ ] T055 [US4] Frontend — Digest page — `packages/frontend/src/app/(dashboard)/digests/page.tsx`. List of digests with type/date/status. Digest detail view: topic groups as expandable cards, trend analysis section, linked content items. "Generate Now" button. SSE progress indicator during generation.
-- [ ] T056 [US4] Frontend — Settings page (digest config) — `packages/frontend/src/app/(dashboard)/settings/page.tsx`. Digest frequency toggle (daily/weekly). Preferred time picker. Language selector (zh/en). Content retention days. OpenAI API key input (user-configurable).
+- [x] T052 [US4] Implement digest module — `packages/backend/src/digest/digest.module.ts`. LangChain.js setup with configurable provider (OpenAI default, user can set API key). Map-reduce pipeline: summarize individual items → group by topic → generate cross-platform trend analysis. Handle <5 items edge case (individual summaries only).
+- [x] T053 [US4] Implement digest scheduling — `packages/backend/src/digest/digest.scheduler.ts`. BullMQ job: query user's `digest_frequency` + `digest_time` + `timezone` → create repeatable job. On trigger: fetch uncovered content items for period → run digest pipeline → save to `digests` table → link via `digest_items`.
+- [x] T054 [US4] Implement digest API endpoints — `packages/backend/src/digest/digest.controller.ts`. `GET /digests` (paginated list), `POST /digests/generate` (manual trigger → 202 Accepted), `GET /digests/:id` (full digest), `GET /digests/:id/stream` (SSE for real-time generation progress).
+- [x] T055 [US4] Frontend — Digest page — `packages/frontend/src/app/(dashboard)/digests/page.tsx`. List of digests with type/date/status. Digest detail view: topic groups as expandable cards, trend analysis section, linked content items. "Generate Now" button. SSE progress indicator during generation.
+- [x] T056 [US4] Frontend — Settings page (digest config) — `packages/frontend/src/app/(dashboard)/settings/page.tsx`. Digest frequency toggle (daily/weekly). Preferred time picker. Language selector (zh/en). Content retention days. OpenAI API key input (user-configurable).
 
 **Checkpoint**: 20+ content items collected → click "Generate Now" → SSE shows progress → digest appears with topic groups and trends. Scheduled digests fire at configured time.
 
