@@ -200,6 +200,10 @@ export const connectionsApi = {
     return apiClient.get('/connections');
   },
 
+  listPlatforms(): Promise<{ platforms: string[] }> {
+    return apiClient.get('/connections/platforms');
+  },
+
   create(data: CreateConnectionRequest): Promise<Connection> {
     return apiClient.post('/connections', data);
   },
