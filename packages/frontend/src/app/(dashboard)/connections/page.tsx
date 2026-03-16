@@ -38,6 +38,26 @@ export default function ConnectionsPage() {
     queryFn: () => connectionsApi.list(),
   });
 
+  const { data: platformsData } = useQuery({
+    queryKey: ['platforms'],
+    queryFn: () => connectionsApi.listPlatforms(),
+  });
+
+  const dynamicPlatforms =
+    platformsData?.platforms.map((p) => {
+      const existing = PLATFORMS.find((staticP) => staticP.id === p);
+      if (existing) return existing;
+
+      // Default fallback for new connectors
+      return {
+        id: p,
+        label: p.charAt(0).toUpperCase() + p.slice(1),
+        authType: 'token',
+        authField: 'api_token',
+        placeholder: 'Enter token...',
+      } as PlatformConfig;
+    }) || PLATFORMS;
+
   const createMutation = useMutation({
     mutationFn: connectionsApi.create,
     onSuccess: () => {
@@ -72,13 +92,13 @@ export default function ConnectionsPage() {
 
   function handleAddConnection(e: React.FormEvent) {
     e.preventDefault();
-    const platform = PLATFORMS.find((p) => p.id === selectedPlatform);
-    if (!platform || !platform.authField) return;
+    const platform = dynamicPlatforms.find((p) => p.id === selectedPlatform);
+    if (!platform || (platform.authType === 'token' && !platform.authField)) return;
 
     createMutation.mutate({
       platform: selectedPlatform,
       connection_type: 'api',
-      auth_data: { [platform.authField]: authToken },
+      auth_data: platform.authType === 'token' ? { [platform.authField!]: authToken } : undefined,
     });
   }
 
@@ -115,7 +135,7 @@ export default function ConnectionsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a platform</option>
-                {PLATFORMS.map((p) => (
+                {dynamicPlatforms.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.label}
                   </option>
@@ -125,7 +145,7 @@ export default function ConnectionsPage() {
 
             {selectedPlatform &&
               (() => {
-                const platform = PLATFORMS.find((p) => p.id === selectedPlatform);
+                const platform = dynamicPlatforms.find((p) => p.id === selectedPlatform);
                 if (!platform) return null;
 
                 if (platform.authType === 'oauth') {
