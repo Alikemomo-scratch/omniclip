@@ -10,6 +10,7 @@ import { ConnectorRegistry } from '../connectors/connector.registry';
 import { ConnectorError } from '../connectors/interfaces/connector-error';
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
+import { setRlsContext } from '../common/database/rls.middleware';
 import { platformConnections, syncJobs } from '../common/database/schema';
 import type { PlatformConnectionData } from '@omniclip/shared';
 
@@ -83,6 +84,8 @@ export class SyncProcessor extends WorkerHost {
 
       // 7. Update last_sync_at and create sync_job record
       await this.db.transaction(async (tx) => {
+        // Set RLS context so policies are enforced for this background job
+        await setRlsContext(tx as unknown as DrizzleDB, userId);
         // Update connection's last_sync_at
         await tx
           .update(platformConnections)
@@ -170,6 +173,9 @@ export class SyncProcessor extends WorkerHost {
     connectionStatus?: string,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // Set RLS context so policies are enforced for this background job
+      await setRlsContext(tx as unknown as DrizzleDB, userId);
+
       // Update connection error info
       const updateData: Record<string, unknown> = {
         lastError: errorMessage,

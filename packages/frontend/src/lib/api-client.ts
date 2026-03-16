@@ -11,6 +11,9 @@ function getToken(): string | null {
   return localStorage.getItem('omniclip_token');
 }
 
+/** Exported for components that need to read the token (e.g., OAuth redirect). */
+export { getToken };
+
 function setToken(token: string): void {
   localStorage.setItem('omniclip_token', token);
 }
