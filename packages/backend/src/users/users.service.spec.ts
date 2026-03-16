@@ -13,11 +13,30 @@ function createMockDb() {
     returning: vi.fn().mockResolvedValue([]),
   };
 
-  return {
+  const db: Record<string, unknown> = {
     select: vi.fn().mockReturnValue(chainable),
     update: vi.fn().mockReturnValue(chainable),
     _chainable: chainable,
+    // withRlsContext calls db.transaction(cb) — mock it to invoke cb with a
+    // transaction object that has `execute` (for set_config) and query methods.
+    transaction: vi.fn().mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
+      const txChainable = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn(() => chainable.limit()),
+        set: vi.fn().mockReturnThis(),
+        returning: vi.fn(() => chainable.returning()),
+      };
+      const tx = {
+        select: vi.fn().mockReturnValue(txChainable),
+        update: vi.fn().mockReturnValue(txChainable),
+        execute: vi.fn().mockResolvedValue(undefined),
+      };
+      return cb(tx);
+    }),
   };
+
+  return db as typeof db & { _chainable: typeof chainable };
 }
 
 const mockUser = {
@@ -77,16 +96,17 @@ describe('UsersService', () => {
       });
 
       expect(result.display_name).toBe('New Name');
-      expect(mockDb.update).toHaveBeenCalled();
+      // Transaction is called (wraps in withRlsContext)
+      expect(mockDb.transaction).toHaveBeenCalled();
     });
 
     it('should return current user if no fields to update', async () => {
+      // When no fields to update, findByIdInTx is called inside the same transaction
       mockDb._chainable.limit.mockResolvedValueOnce([mockUser]);
 
       const result = await service.update('user-1', {});
 
       expect(result.display_name).toBe('Test User');
-      expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if user does not exist on update', async () => {
