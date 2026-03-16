@@ -77,7 +77,14 @@ export class ConnectionsService {
   }
 
   /**
-   * Find a single connection by ID (RLS-scoped).
+   * List all registered platforms.
+   */
+  listPlatforms() {
+    return this.connectorRegistry.listRegistered();
+  }
+
+  /**
+   * Get a single connection by ID (RLS-scoped).
    */
   async findById(userId: string, connectionId: string) {
     return withRlsContext(this.db, userId, async (tx) => {

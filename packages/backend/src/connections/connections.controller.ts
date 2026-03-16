@@ -30,6 +30,15 @@ export class ConnectionsController {
   }
 
   /**
+   * GET /connections/platforms — List all available platforms.
+   */
+  @Get('platforms')
+  listPlatforms() {
+    const platforms = this.connectionsService.listPlatforms();
+    return { platforms };
+  }
+
+  /**
    * GET /connections/:id — Get a single connection by ID.
    */
   @Get(':id')
