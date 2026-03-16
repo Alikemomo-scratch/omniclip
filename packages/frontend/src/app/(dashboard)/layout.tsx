@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { authApi } from '@/lib/api-client';
@@ -13,6 +14,15 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  // Proactive auth guard — redirect to login if no token is present.
+  // This prevents rendering dashboard pages for unauthenticated users
+  // before any API call triggers the reactive 401 handler.
+  useEffect(() => {
+    if (!authApi.isAuthenticated()) {
+      window.location.href = '/login';
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex">
