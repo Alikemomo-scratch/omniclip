@@ -164,12 +164,12 @@
 
 ### Tests for User Story 5
 
-- [ ] T057 [P] [US5] Integration test for RLS isolation — `packages/backend/test/integration/rls-isolation.spec.ts`. Create 2 users → insert content for each → query with each user's RLS context → verify zero cross-user data leakage across all tables (connections, content_items, digests, sync_jobs).
+- [x] T057 [P] [US5] Integration test for RLS isolation — `packages/backend/test/integration/rls-isolation.spec.ts`. Create 2 users → insert content for each → query with each user's RLS context → verify zero cross-user data leakage across all tables (connections, content_items, digests, sync_jobs).
 
 ### Implementation for User Story 5
 
-- [ ] T058 [US5] RLS verification and hardening — Review all endpoints and queries to ensure RLS context is set before every database operation. Add integration test for edge cases: user A trying to access user B's connection by ID (should get 404, not 403 — no information leakage). Verify DELETE and PATCH operations are RLS-scoped.
-- [ ] T059 [US5] Frontend — Account management — Ensure all API calls include auth token. Verify frontend never caches data across different user sessions. Logout clears all local state.
+- [x] T058 [US5] RLS verification and hardening — Review all endpoints and queries to ensure RLS context is set before every database operation. Add integration test for edge cases: user A trying to access user B's connection by ID (should get 404, not 403 — no information leakage). Verify DELETE and PATCH operations are RLS-scoped.
+- [x] T059 [US5] Frontend — Account management — Ensure all API calls include auth token. Verify frontend never caches data across different user sessions. Logout clears all local state.
 
 **Checkpoint**: Two users created → each connects platforms → each only sees own data. Direct ID access to other user's resources returns 404.
 

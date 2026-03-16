@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { connectionsApi } from '@/lib/api-client';
+import { connectionsApi, getToken } from '@/lib/api-client';
 import type { Connection, ApiError } from '@/lib/api-client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
@@ -65,7 +65,7 @@ export default function ConnectionsPage() {
 
   function handleConnectOAuth(platformId: string) {
     // Redirect to backend OAuth endpoint — the backend will redirect to the provider's consent screen
-    const token = localStorage.getItem('omniclip_token');
+    const token = getToken();
     // We need to pass the JWT token as a query parameter since the redirect won't have cookies
     window.location.href = `${API_BASE}/auth/${platformId}?token=${encodeURIComponent(token || '')}`;
   }
