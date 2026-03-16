@@ -183,12 +183,12 @@
 
 ### Tests for User Story 6
 
-- [ ] T060 [P] [US6] Unit test for connector extensibility — `packages/backend/test/unit/connector-registry.spec.ts`. Create MockConnector implementing PlatformConnector → register → verify `get()`, `listRegistered()`. Verify error handling: unregistered platform throws `NotFoundException`. Verify all 4 real connectors implement the same interface.
+- [x] T060 [P] [US6] Unit test for connector extensibility — `packages/backend/test/unit/connector-registry.spec.ts`. Create MockConnector implementing PlatformConnector → register → verify `get()`, `listRegistered()`. Verify error handling: unregistered platform throws `NotFoundException`. Verify all 4 real connectors implement the same interface.
 
 ### Implementation for User Story 6
 
-- [ ] T061 [US6] Connector architecture validation — Verify all 4 connectors (GitHub, YouTube, Twitter, Xiaohongshu) implement `PlatformConnector` interface identically. Verify `ConnectorsModule` uses `onModuleInit` registration pattern per connector.md. Document the "add a new connector" guide in code comments.
-- [ ] T062 [US6] Frontend — Dynamic platform list — `packages/frontend/src/app/(dashboard)/connections/page.tsx`. Fetch available platforms from `GET /connections/platforms` (backed by `ConnectorRegistry.listRegistered()`). Render connection options dynamically instead of hardcoded list. New connector = automatically appears in UI.
+- [x] T061 [US6] Connector architecture validation — Verify all 4 connectors (GitHub, YouTube, Twitter, Xiaohongshu) implement `PlatformConnector` interface identically. Verify `ConnectorsModule` uses `onModuleInit` registration pattern per connector.md. Document the "add a new connector" guide in code comments.
+- [x] T062 [US6] Frontend — Dynamic platform list — `packages/frontend/src/app/(dashboard)/connections/page.tsx`. Fetch available platforms from `GET /connections/platforms` (backed by `ConnectorRegistry.listRegistered()`). Render connection options dynamically instead of hardcoded list. New connector = automatically appears in UI.
 
 **Checkpoint**: `ConnectorRegistry.listRegistered()` returns all 4 platforms. Mock connector can be added with zero changes to existing code.
 
