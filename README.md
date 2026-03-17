@@ -2,44 +2,47 @@
 
 OmniClip is a multi-platform content aggregator built strictly for the **individual**.
 
-In an era of algorithmic feeds that chase the latest trends, endless scrolling, and deep filter bubbles, OmniClip serves as your personal information anchor. It strips away the noise, the addictive UI patterns, and the algorithmic manipulation. You decide what platforms to connect (GitHub, YouTube, Twitter/X, Xiaohongshu), and OmniClip quietly gathers, deduplicates, and synthesizes the content you actually care about into a single, chronological, AI-digested feed.
+In an era of algorithmic feeds that chase the latest trends, endless scrolling, and deep filter bubbles, OmniClip serves as your personal information anchor. It strips away the noise, the addictive UI patterns, and the algorithmic manipulation. You decide what platforms to connect, and OmniClip quietly gathers, deduplicates, and synthesizes the content you actually care about into a single, chronological, AI-digested feed.
 
 **Not chasing trends. Breaking the information cocoon.**
 
 ---
 
-## Architecture Overview
+## Supported Platforms
 
-OmniClip is a Turborepo monorepo consisting of:
+Currently, OmniClip supports gathering content from the following platforms:
 
-- **Backend**: NestJS, PostgreSQL (with Row-Level Security for multi-user isolation), Redis, BullMQ
-- **Frontend**: Next.js 15 (React 19), Tailwind CSS v4, React Query
-- **Extension**: A Chrome Extension (MV3) that securely intercepts and bridges content from logged-in sessions (X/Twitter, Xiaohongshu) without requiring passwords.
-- **Shared**: A shared TypeScript library for common types and utilities.
+- **GitHub** (Starred Repositories / Releases)
+- **YouTube** (Subscriptions / New Videos)
+- **Twitter / X** (Bookmarks / Timeline via Extension)
+- **Xiaohongshu / RED** (Saved Posts via Extension)
 
 ---
 
 ## 🤖 Quick Installation (For AI Agents)
 
-If you are an AI agent configuring this project, you can use the following one-line command to bootstrap the entire environment (assuming Docker, Node.js 20+, and pnpm are installed):
+If you are an AI agent configuring this project, use the following one-line command to bootstrap the entire environment:
 
 ```bash
 pnpm install && cp packages/backend/.env.example packages/backend/.env && cp packages/frontend/.env.example packages/frontend/.env && docker-compose up -d && sleep 5 && pnpm --filter backend db:migrate && pnpm dev
 ```
 
-_Note: For the AI features to work, you will need to manually set `OPENAI_API_KEY` in `packages/backend/.env` after the initial setup._
+_Note: For the AI features to work, set `OPENAI_API_KEY` in `packages/backend/.env` after the initial setup._
 
 ---
 
-## Manual Installation Guide
+## Step-by-Step Setup Guide (For Humans)
+
+Follow these steps to configure and run OmniClip on your local machine.
 
 ### Prerequisites
 
-- Node.js 20 LTS
-- pnpm 9.x
-- Docker & Docker Compose
+- **Node.js 20 LTS** (`node -v` should show v20.x)
+- **pnpm 9.x** (`npm install -g pnpm`)
+- **Docker & Docker Compose** (for running PostgreSQL and Redis)
+- **Chrome / Chromium browser** (for the OmniClip extension)
 
-### 1. Clone & Install
+### Step 1: Clone the Repository & Install Dependencies
 
 ```bash
 git clone https://github.com/MomoP32/omniclip.git
@@ -47,46 +50,68 @@ cd omniclip
 pnpm install
 ```
 
-### 2. Start Infrastructure
+### Step 2: Start the Database and Redis
+
+OmniClip requires PostgreSQL for data storage and Redis for queues/rate-limiting.
 
 ```bash
-# Starts PostgreSQL (5432) and Redis (6379)
+# Starts PostgreSQL (port 5432) and Redis (port 6379) in the background
 docker-compose up -d
 ```
 
-### 3. Environment Variables
+### Step 3: Configure Environment Variables
+
+Copy the example environment files to create your local configurations.
 
 ```bash
 cp packages/backend/.env.example packages/backend/.env
 cp packages/frontend/.env.example packages/frontend/.env
 ```
 
-Ensure you add your `OPENAI_API_KEY` to `packages/backend/.env`.
+**Required Configuration:**
+Open `packages/backend/.env` in your text editor and add your OpenAI API key for the AI Digest feature to work:
 
-### 4. Database Setup
+```env
+OPENAI_API_KEY=sk-your-openai-api-key-here
+```
+
+_(Leave the `DATABASE_URL` and `REDIS_URL` as their defaults if you are using the provided `docker-compose.yml`.)_
+
+### Step 4: Initialize the Database
+
+Run the database migrations to create all necessary tables and security policies.
 
 ```bash
 pnpm --filter backend db:migrate
 ```
 
-### 5. Start Servers
+### Step 5: Start the Application Servers
+
+Start the backend and frontend development servers.
 
 ```bash
-# Starts Backend (3001) and Frontend (3000)
 pnpm dev
 ```
 
----
+- The **Frontend** will be available at `http://localhost:3000`
+- The **Backend API** will be available at `http://localhost:3001`
 
-## Extensibility
+### Step 6: Install the Chrome Extension
 
-OmniClip is designed with a pluggable architecture. To add a new platform:
+To collect data from Twitter/X and Xiaohongshu without needing API keys, you must install the OmniClip extension.
 
-1. Define the platform ID in `packages/shared`.
-2. Implement the `PlatformConnector` interface in the backend.
-3. Register the connector in the backend's `ConnectorsModule`.
-4. (If it's an extension integration) Add a content script interceptor in `packages/extension`.
-   The frontend will dynamically fetch and display the new connection option automatically.
+1. Open Google Chrome and navigate to `chrome://extensions/`
+2. Enable **"Developer mode"** (toggle in the top right corner).
+3. Click **"Load unpacked"**.
+4. Select the `packages/extension/dist/` directory inside the OmniClip project folder.
+
+### Step 7: Connect Your Platforms
+
+1. Open your browser and go to `http://localhost:3000`.
+2. Register a new local account and log in.
+3. Navigate to the **Connections** page.
+4. Add your desired platforms (e.g., provide a GitHub Personal Access Token, or authenticate YouTube via OAuth).
+5. For Extension-based platforms (Twitter, Xiaohongshu), simply log into those websites in your browser; the extension will automatically intercept and sync your saved content to your OmniClip feed!
 
 ---
 
