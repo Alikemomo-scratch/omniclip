@@ -4,16 +4,19 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { authApi } from '@/lib/api-client';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useTranslations } from 'next-intl';
 
 const navItems = [
-  { href: '/feed', label: 'Feed' },
-  { href: '/digests', label: 'Digests' },
-  { href: '/connections', label: 'Connections' },
-  { href: '/settings', label: 'Settings' },
+  { href: '/feed', labelKey: 'feed' },
+  { href: '/digests', labelKey: 'digests' },
+  { href: '/connections', labelKey: 'connections' },
+  { href: '/settings', labelKey: 'settings' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const t = useTranslations('Navigation');
 
   // Proactive auth guard — redirect to login if no token is present.
   // This prevents rendering dashboard pages for unauthenticated users
@@ -28,8 +31,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        <div className="p-6">
+        <div className="p-6 flex justify-between items-center">
           <h1 className="text-xl font-bold">OmniClip</h1>
+          <LanguageSwitcher />
         </div>
 
         <nav className="flex-1 px-4 space-y-1">
@@ -45,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
               >
-                {item.label}
+                {t(item.labelKey as any)}
               </Link>
             );
           })}
@@ -56,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => authApi.logout()}
             className="w-full px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-md transition-colors text-left"
           >
-            Logout
+            {t('logout')}
           </button>
         </div>
       </aside>
