@@ -43,7 +43,7 @@ Follow these steps to configure and run OmniClip on your local machine.
 - **Docker & Docker Compose** (for running PostgreSQL and Redis)
 - **Chrome / Chromium browser** (for the OmniClip extension)
 
-### Step 1: Clone the Repository & Install Dependencies
+### Step 1: Clone the Repository & Install Dependencies (Agent can do this)
 
 ```bash
 git clone https://github.com/MomoP32/omniclip.git
@@ -51,7 +51,7 @@ cd omniclip
 pnpm install
 ```
 
-### Step 2: Start the Database and Redis
+### Step 2: Start the Database and Redis (Agent can do this)
 
 OmniClip requires PostgreSQL for data storage and Redis for queues/rate-limiting.
 
@@ -60,7 +60,7 @@ OmniClip requires PostgreSQL for data storage and Redis for queues/rate-limiting
 docker-compose up -d
 ```
 
-### Step 3: Configure Environment Variables
+### Step 3: Configure Environment Variables (Requires Human Input)
 
 Copy the example environment files to create your local configurations.
 
@@ -78,7 +78,7 @@ OPENAI_API_KEY=sk-your-openai-api-key-here
 
 _(Leave the `DATABASE_URL` and `REDIS_URL` as their defaults if you are using the provided `docker-compose.yml`.)_
 
-### Step 4: Initialize the Database
+### Step 4: Initialize the Database (Agent can do this)
 
 Run the database migrations to create all necessary tables and security policies.
 
@@ -86,9 +86,9 @@ Run the database migrations to create all necessary tables and security policies
 pnpm --filter backend db:migrate
 ```
 
-### Step 5: Start the Application Servers
+### Step 5: Start the Application Servers (Requires Human Action)
 
-Start the backend and frontend development servers.
+Start the backend and frontend development servers. **(Agents: Do not run this, it will block your terminal!)**
 
 ```bash
 pnpm dev
@@ -97,7 +97,7 @@ pnpm dev
 - The **Frontend** will be available at `http://localhost:3000`
 - The **Backend API** will be available at `http://localhost:3001`
 
-### Step 6: Install the Chrome Extension
+### Step 6: Install the Chrome Extension (Requires Human Action)
 
 To collect data from Twitter/X and Xiaohongshu without needing API keys, you must install the OmniClip extension.
 
@@ -106,7 +106,7 @@ To collect data from Twitter/X and Xiaohongshu without needing API keys, you mus
 3. Click **"Load unpacked"**.
 4. Select the `packages/extension/dist/` directory inside the OmniClip project folder.
 
-### Step 7: Connect Your Platforms
+### Step 7: Connect Your Platforms (Requires Human Action)
 
 1. Open your browser and go to `http://localhost:3000`.
 2. Register a new local account and log in.
