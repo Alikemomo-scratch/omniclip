@@ -19,15 +19,16 @@ OmniClip 是一个专为**个人**打造的多平台内容聚合器。
 
 ---
 
-## 🤖 快速安装指令 (写给 AI Agent)
+## 🤖 给 AI Agent 的配置指令 (Instructions for AI Agents)
 
-如果你是一个 AI Agent 并且正在配置该项目，可以使用以下单行命令来一键引导整个开发环境：
+如果你是协助用户配置此项目的 AI Agent，请不要使用阻塞型的长命令。请严格按照以下步骤执行：
 
-```bash
-pnpm install && cp packages/backend/.env.example packages/backend/.env && cp packages/frontend/.env.example packages/frontend/.env && docker-compose up -d && sleep 5 && pnpm --filter backend db:migrate && pnpm dev
-```
-
-_注意：要使 AI 摘要功能生效，在初始设置完成后，需要手动在 `packages/backend/.env` 中配置 `OPENAI_API_KEY`。_
+1. **安装依赖**：执行 `pnpm install`。
+2. **环境配置**：复制 `packages/backend` 和 `packages/frontend` 下的 `.env.example` 为 `.env`。
+3. **询问密钥**：向用户询问其 `OPENAI_API_KEY`，并将其写入 `packages/backend/.env` 文件中。
+4. **启动基建**：执行 `docker-compose up -d` 启动数据库和 Redis，并通过轮询或其他机制确保数据库已经就绪（不要仅依赖死板的 sleep）。
+5. **初始化数据库**：数据库就绪后，执行 `pnpm --filter backend db:migrate`。
+6. **移交人类**：**不要**自己执行 `pnpm dev`，这会卡死你的终端。请指示用户自己在终端执行 `pnpm dev`，并引导用户查阅下方教程的**第六、七步**去安装浏览器扩展和绑定账号。
 
 ---
 

@@ -19,15 +19,16 @@ Currently, OmniClip supports gathering content from the following platforms:
 
 ---
 
-## 🤖 Quick Installation (For AI Agents)
+## 🤖 Instructions for AI Agents
 
-If you are an AI agent configuring this project, use the following one-line command to bootstrap the entire environment:
+If you are an AI assistant tasked with helping the user set up this project, **do not run a single blocking command**. Instead, follow these sequential steps to ensure a robust setup:
 
-```bash
-pnpm install && cp packages/backend/.env.example packages/backend/.env && cp packages/frontend/.env.example packages/frontend/.env && docker-compose up -d && sleep 5 && pnpm --filter backend db:migrate && pnpm dev
-```
-
-_Note: For the AI features to work, set `OPENAI_API_KEY` in `packages/backend/.env` after the initial setup._
+1. **Dependencies:** Run `pnpm install`.
+2. **Environment Files:** Copy `.env.example` to `.env` in both `packages/backend` and `packages/frontend`.
+3. **API Key:** Ask the user for their `OPENAI_API_KEY`. Once provided, inject it into `packages/backend/.env`.
+4. **Infrastructure:** Run `docker-compose up -d` to start PostgreSQL and Redis. Use a command (like `pg_isready` or retry logic) to ensure the database is actually accepting connections rather than just sleeping.
+5. **Database Migration:** Once the DB is ready, run `pnpm --filter backend db:migrate`.
+6. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instead, instruct the user to run `pnpm dev` in their own terminal, and guide them to **Step 6 & 7** below so they can install the Chrome extension and authenticate their platforms.
 
 ---
 
