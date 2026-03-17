@@ -5,7 +5,7 @@
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as fs from 'node:fs';
@@ -89,6 +89,8 @@ export async function startTestDatabase(): Promise<{
  * Create a fully bootstrapped NestJS app with the test database.
  * Override the DRIZZLE provider with the Testcontainer-backed instance.
  */
+import { BullModule } from '@nestjs/bullmq';
+
 export async function createTestApp(
   modules: any[],
   connectionString: string,
@@ -118,6 +120,14 @@ export async function createTestApp(
             },
           }),
         ],
+      }),
+      BullModule.forRootAsync({
+        inject: [ConfigService],
+        useFactory: (config: ConfigService) => ({
+          connection: {
+            url: config.get<string>('redis.url'),
+          },
+        }),
       }),
       ...modules,
     ],

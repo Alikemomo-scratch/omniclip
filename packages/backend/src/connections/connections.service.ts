@@ -7,6 +7,8 @@ import { platformConnections } from '../common/database/schema';
 import { ConnectorRegistry } from '../connectors/connector.registry';
 import type { CreateConnectionDto, UpdateConnectionDto } from './dto';
 
+import { encryptAuthData, decryptAuthData } from '../common/utils/encryption.util';
+
 @Injectable()
 export class ConnectionsService {
   constructor(
@@ -61,7 +63,7 @@ export class ConnectionsService {
           platform: dto.platform,
           connectionType: dto.connection_type,
           status: 'active',
-          authData: dto.auth_data || null,
+          authData: dto.auth_data ? encryptAuthData(dto.auth_data) : null,
           syncIntervalMinutes: dto.sync_interval_minutes || 60,
         })
         .returning({
@@ -132,7 +134,7 @@ export class ConnectionsService {
       };
 
       if (dto.auth_data !== undefined) {
-        updateValues.authData = dto.auth_data;
+        updateValues.authData = dto.auth_data ? encryptAuthData(dto.auth_data) : null;
       }
       if (dto.sync_interval_minutes !== undefined) {
         updateValues.syncIntervalMinutes = dto.sync_interval_minutes;
@@ -212,6 +214,8 @@ export class ConnectionsService {
       if (!connection) {
         throw new NotFoundException('Connection not found');
       }
+
+      connection.authData = decryptAuthData(connection.authData as any);
 
       return connection;
     });
