@@ -1,0 +1,43 @@
+{
+  "Navigation": {
+    "feed": "内容流",
+    "digests": "AI 摘要",
+    "connections": "账号连接",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "Connections": {
+    "title": "账号连接",
+    "add": "添加连接",
+    "cancel": "取消",
+    "addNew": "添加新连接",
+    "platform": "平台",
+    "selectPlatform": "请选择平台",
+    "apiToken": "API Token",
+    "connect": "连接",
+    "connecting": "连接中...",
+    "loading": "正在加载连接...",
+    "empty": "暂无连接。请添加一个平台以开始同步内容。",
+    "status": "状态",
+    "test": "测试",
+    "testing": "测试中...",
+    "delete": "删除"
+  },
+  "Feed": {
+    "title": "内容流",
+    "search": "搜索文章、视频...",
+    "allPlatforms": "所有平台",
+    "loading": "正在加载内容..."
+  },
+  "Digests": {
+    "title": "AI 摘要",
+    "generate": "生成摘要",
+    "generating": "生成中...",
+    "period": "周期",
+    "daily": "每日",
+    "weekly": "每周",
+    "loading": "正在加载摘要...",
+    "empty": "暂无摘要。",
+    "view": "查看摘要"
+  }
+}

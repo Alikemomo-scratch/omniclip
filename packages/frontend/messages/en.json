@@ -1,0 +1,43 @@
+{
+  "Navigation": {
+    "feed": "Content Feed",
+    "digests": "AI Digests",
+    "connections": "Connections",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "Connections": {
+    "title": "Connections",
+    "add": "Add Connection",
+    "cancel": "Cancel",
+    "addNew": "Add New Connection",
+    "platform": "Platform",
+    "selectPlatform": "Select a platform",
+    "apiToken": "API Token",
+    "connect": "Connect",
+    "connecting": "Connecting...",
+    "loading": "Loading connections...",
+    "empty": "No connections yet. Add one to start syncing content.",
+    "status": "Status",
+    "test": "Test",
+    "testing": "Testing...",
+    "delete": "Delete"
+  },
+  "Feed": {
+    "title": "Content Feed",
+    "search": "Search articles, videos...",
+    "allPlatforms": "All Platforms",
+    "loading": "Loading feed..."
+  },
+  "Digests": {
+    "title": "AI Digests",
+    "generate": "Generate Digest",
+    "generating": "Generating...",
+    "period": "Period",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "loading": "Loading digests...",
+    "empty": "No digests available.",
+    "view": "View Digest"
+  }
+}
