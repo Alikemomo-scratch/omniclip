@@ -15,6 +15,9 @@ export interface AppConfig {
   openai: {
     apiKey: string;
   };
+  gemini: {
+    apiKey: string;
+  };
   youtube: {
     clientId: string;
     clientSecret: string;
@@ -39,9 +42,13 @@ export const appConfig = (): AppConfig => ({
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
   },
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || '',
+  },
   youtube: {
     clientId: process.env.YOUTUBE_CLIENT_ID || '',
     clientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',
-    redirectUri: process.env.YOUTUBE_REDIRECT_URI || 'http://localhost:3000/connections/youtube/callback',
+    redirectUri:
+      process.env.YOUTUBE_REDIRECT_URI || 'http://localhost:3000/connections/youtube/callback',
   },
 });

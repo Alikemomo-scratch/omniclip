@@ -2,6 +2,7 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { eq, and, gte, lte, sql, count, desc } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
@@ -31,14 +32,20 @@ export type ProgressCallback = (event: DigestProgressEvent) => void;
 export class DigestService {
   private readonly logger = new Logger(DigestService.name);
   private openai: OpenAI | null = null;
+  private gemini: GoogleGenerativeAI | null = null;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly configService: ConfigService,
   ) {
-    const apiKey = this.configService.get<string>('openai.apiKey');
-    if (apiKey) {
-      this.openai = new OpenAI({ apiKey });
+    const openAiKey = this.configService.get<string>('openai.apiKey');
+    if (openAiKey) {
+      this.openai = new OpenAI({ apiKey: openAiKey });
+    }
+
+    const geminiKey = this.configService.get<string>('gemini.apiKey');
+    if (geminiKey) {
+      this.gemini = new GoogleGenerativeAI(geminiKey);
     }
   }
 
@@ -328,7 +335,7 @@ export class DigestService {
     });
 
     const prompt = buildSimpleSummaryPrompt(items, language);
-    const response = await this.callOpenAI(prompt);
+    const response = await this.callAI(prompt);
     const parsed = this.parseJsonResponse<{
       topic_groups: TopicGroup[];
       trend_analysis: string;
@@ -368,7 +375,7 @@ export class DigestService {
       });
 
       const prompt = buildBatchMapPrompt(batch, language);
-      const response = await this.callOpenAI(prompt);
+      const response = await this.callAI(prompt);
       const batchSummaries = this.parseJsonResponse<{ id: string; summary: string }[]>(response);
 
       // Map back to ItemSummary with platform info
@@ -389,7 +396,7 @@ export class DigestService {
     });
 
     const reducePrompt = buildReducePrompt(allSummaries, language);
-    const reduceResponse = await this.callOpenAI(reducePrompt);
+    const reduceResponse = await this.callAI(reducePrompt);
     const result = this.parseJsonResponse<{
       topic_groups: TopicGroup[];
       trend_analysis: string;
@@ -411,36 +418,52 @@ export class DigestService {
   }
 
   /**
-   * Call OpenAI API. Falls back to a stub if no API key is configured.
+   * Call AI API (prefers Gemini, falls back to OpenAI). Falls back to a stub if no API key is configured.
    */
-  private async callOpenAI(prompt: string): Promise<string> {
-    if (!this.openai) {
-      // No API key — return a mock/stub response for development
-      this.logger.warn('No OpenAI API key configured; returning stub response');
-      return this.stubOpenAIResponse(prompt);
+  private async callAI(prompt: string): Promise<string> {
+    const systemPrompt = 'You are an AI content curator that generates structured JSON responses.';
+
+    if (this.gemini) {
+      try {
+        const model = this.gemini.getGenerativeModel({
+          model: 'gemini-2.5-flash',
+          systemInstruction: systemPrompt,
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+        });
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      } catch (error) {
+        this.logger.error(`Gemini generation failed: ${error}`);
+        // Fallthrough to OpenAI or stub if Gemini fails
+      }
     }
 
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an AI content curator that generates structured JSON responses.',
-        },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.3,
-      response_format: { type: 'json_object' },
-    });
+    if (this.openai) {
+      try {
+        const response = await this.openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          response_format: { type: 'json_object' },
+        });
+        return response.choices[0]?.message?.content ?? '{}';
+      } catch (error) {
+        this.logger.error(`OpenAI generation failed: ${error}`);
+      }
+    }
 
-    return response.choices[0]?.message?.content ?? '{}';
+    // No API key or both failed — return a mock/stub response for development
+    this.logger.warn('No valid AI API key configured or calls failed; returning stub response');
+    return this.stubAIResponse(prompt);
   }
 
   /**
-   * Stub response when no OpenAI key is configured.
-   * Generates deterministic output for testing/development.
+   * Stub response when no API key is configured.
    */
-  private stubOpenAIResponse(prompt: string): string {
+  private stubAIResponse(prompt: string): string {
     // Detect which type of prompt this is
     if (prompt.includes('Summarize each of the following content items in 1-2 sentences each')) {
       // Batch MAP prompt — extract item IDs from the prompt
