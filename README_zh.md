@@ -25,7 +25,7 @@ OmniClip 是一个专为**个人**打造的多平台内容聚合器。
 
 1. **安装依赖**：执行 `pnpm install`。
 2. **环境配置**：复制 `packages/backend` 和 `packages/frontend` 下的 `.env.example` 为 `.env`。
-3. **询问密钥**：向用户询问其 `OPENAI_API_KEY`，并将其写入 `packages/backend/.env` 文件中。
+3. **询问密钥**：向用户询问其偏好的 AI 密钥（`OPENAI_API_KEY` 或 `GEMINI_API_KEY`），并将其写入 `packages/backend/.env` 文件中。
 4. **启动基建**：执行 `docker-compose up -d` 启动数据库和 Redis，并通过轮询或其他机制确保数据库已经就绪（不要仅依赖死板的 sleep）。
 5. **初始化数据库**：数据库就绪后，执行 `pnpm --filter backend db:migrate`。
 6. **移交人类**：**不要**自己执行 `pnpm dev`，这会卡死你的终端。请指示用户自己在终端执行 `pnpm dev`，并引导用户查阅下方教程的**第六、七步**去安装浏览器扩展和绑定账号。
@@ -70,10 +70,12 @@ cp packages/frontend/.env.example packages/frontend/.env
 ```
 
 **必须修改的配置：**
-用文本编辑器打开 `packages/backend/.env`，添加你的 OpenAI API Key，以便启用 AI 智能摘要功能：
+用文本编辑器打开 `packages/backend/.env`，添加你的 OpenAI 或 Gemini API Key，以便启用 AI 智能摘要功能：
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
+# 或者
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 _(如果你使用的是默认的 docker-compose.yml，`DATABASE_URL` 和 `REDIS_URL` 保持默认即可。)_
