@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { appConfig } from './common/config';
 import { DatabaseModule } from './common/database';
@@ -9,9 +9,13 @@ import { ConnectorsModule } from './connectors';
 import { ConnectionsModule } from './connections';
 import { ContentModule } from './content';
 import { DigestModule } from './digest';
+import { LoggerModule } from './common/logger/logger.module';
+import { LoggerMiddleware } from './common/logger/logger.middleware';
+import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -27,4 +31,8 @@ import { DigestModule } from './digest';
     DigestModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware, RateLimitMiddleware).forRoutes('*');
+  }
+}

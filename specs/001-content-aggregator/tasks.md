@@ -198,12 +198,12 @@
 
 **Purpose**: Improvements that span multiple user stories
 
-- [ ] T063 [P] i18n setup — `packages/frontend/src/i18n/`. Chinese (zh) and English (en) translations for all UI strings. `next-intl` configuration. Language switcher component.
-- [ ] T064 [P] Structured logging — `packages/backend/src/common/logger/`. NestJS logger with structured JSON output. Request ID propagation. Sensitive data redaction (tokens, passwords).
-- [ ] T065 [P] API rate limiting — `packages/backend/src/common/middleware/rate-limit.middleware.ts`. Redis-backed rate limiting per user. Configurable limits per endpoint group.
-- [ ] T066 [P] Content retention cleanup — `packages/backend/src/content/retention.scheduler.ts`. BullMQ job: delete content_items older than user's `content_retention_days`. Run daily.
-- [ ] T067 Security audit — Verify: extension sync payloads contain zero platform credentials (SC-010). Manifest permissions are strictly scoped (SC-011). Auth tokens encrypted at rest (FR-006). HTTPS-only sync (FR-021). No script injection on login/payment pages (FR-020).
-- [ ] T068 Run quickstart.md validation — Follow quickstart.md from scratch on a clean environment. Fix any discrepancies. Verify all scripts in "Project Scripts Reference" work.
+- [x] T063 [P] i18n setup — `packages/frontend/src/i18n/`. Chinese (zh) and English (en) translations for all UI strings. `next-intl` configuration. Language switcher component.
+- [x] T064 [P] Structured logging — `packages/backend/src/common/logger/`. NestJS logger with structured JSON output. Request ID propagation. Sensitive data redaction (tokens, passwords).
+- [x] T065 [P] API rate limiting — `packages/backend/src/common/middleware/rate-limit.middleware.ts`. Redis-backed rate limiting per user. Configurable limits per endpoint group.
+- [x] T066 [P] Content retention cleanup — `packages/backend/src/content/retention.scheduler.ts`. BullMQ job: delete content_items older than user's `content_retention_days`. Run daily.
+- [x] T067 Security audit — Verify: extension sync payloads contain zero platform credentials (SC-010). Manifest permissions are strictly scoped (SC-011). Auth tokens encrypted at rest (FR-006). HTTPS-only sync (FR-021). No script injection on login/payment pages (FR-020).
+- [x] T068 Run quickstart.md validation — Follow quickstart.md from scratch on a clean environment. Fix any discrepancies. Verify all scripts in "Project Scripts Reference" work.
 
 ---
 
