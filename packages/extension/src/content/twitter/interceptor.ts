@@ -15,8 +15,9 @@
 import { parseTwitterTimeline } from './parser';
 
 const GRAPHQL_URL_PATTERN = '/graphql/';
-// Only intercept timeline-related queries, not all GraphQL requests
-const TIMELINE_OPERATIONS = ['HomeTimeline', 'HomeLatestTimeline', 'ForYou'];
+// Only intercept timeline-related queries, specifically the "Following" (latest) timeline.
+// Avoid algorithmic "For You" feeds to maximize signal.
+const TIMELINE_OPERATIONS = ['HomeLatestTimeline'];
 
 // Save original fetch and toString for stealth
 const originalFetch = window.fetch;

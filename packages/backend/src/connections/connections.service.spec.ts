@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ConnectionsService } from './connections.service';
 import { ConnectorRegistry } from '../connectors/connector.registry';
+import { SyncScheduler } from '../sync/sync.scheduler';
 
 // Mock Drizzle query builder
 function createMockDb() {
@@ -33,13 +34,19 @@ describe('ConnectionsService', () => {
   let registry: ConnectorRegistry;
   let db: ReturnType<typeof createMockDb>['db'];
   let mockTx: ReturnType<typeof createMockDb>['mockTx'];
+  let mockSyncScheduler: Partial<SyncScheduler>;
 
   beforeEach(() => {
     const mocks = createMockDb();
     db = mocks.db;
     mockTx = mocks.mockTx;
     registry = new ConnectorRegistry();
-    service = new ConnectionsService(db as any, registry);
+    mockSyncScheduler = {
+      scheduleConnection: vi.fn().mockResolvedValue(undefined),
+      updateConnection: vi.fn().mockResolvedValue(undefined),
+      removeConnection: vi.fn().mockResolvedValue(undefined),
+    };
+    service = new ConnectionsService(db as any, registry, mockSyncScheduler as SyncScheduler);
   });
 
   describe('findAll', () => {

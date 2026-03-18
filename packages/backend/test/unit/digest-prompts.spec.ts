@@ -109,7 +109,7 @@ describe('buildReducePrompt', () => {
     ];
     const prompt = buildReducePrompt(summaries, 'en');
 
-    expect(prompt).toContain('2 content item summaries');
+    expect(prompt).toContain('2 high-signal content items');
     expect(prompt).toContain('id: id-1, platform: github');
     expect(prompt).toContain('GitHub release summary');
     expect(prompt).toContain('id: id-2, platform: youtube');
@@ -147,7 +147,7 @@ describe('buildSimpleSummaryPrompt', () => {
     ];
     const prompt = buildSimpleSummaryPrompt(items, 'en');
 
-    expect(prompt).toContain('2 content items');
+    expect(prompt).toContain('2 high-signal content items');
     expect(prompt).toContain('id: a1, platform: github');
     expect(prompt).toContain('Release A');
     expect(prompt).toContain('id: a2, platform: twitter');

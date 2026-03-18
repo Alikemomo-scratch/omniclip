@@ -123,12 +123,28 @@ describe('GitHubConnector', () => {
         ],
       });
 
+      // Mock release response for the starred repo
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Map([['x-ratelimit-remaining', '4899']]),
+        json: async () => ({
+          id: 888,
+          tag_name: 'v0.9.0',
+          name: 'Release v0.9.0',
+          body: 'Starred repo release',
+          html_url: 'https://github.com/octocat/hello-world/releases/tag/v0.9.0',
+          published_at: '2026-03-09T05:00:00Z',
+          author: { login: 'octocat', html_url: 'https://github.com/octocat' },
+        }),
+      });
+
       // Mock events response
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         headers: new Map([
-          ['x-ratelimit-remaining', '4899'],
+          ['x-ratelimit-remaining', '4898'],
           ['link', ''],
         ]),
         json: async () => [
@@ -163,7 +179,7 @@ describe('GitHubConnector', () => {
 
       expect(result.items.length).toBeGreaterThanOrEqual(1);
       expect(result.has_more).toBe(false);
-      expect(result.metadata.api_calls_made).toBeGreaterThanOrEqual(2);
+      expect(result.metadata.api_calls_made).toBeGreaterThanOrEqual(3);
 
       // Check that release event was parsed
       const release = result.items.find(
@@ -173,10 +189,10 @@ describe('GitHubConnector', () => {
       expect(release?.title).toContain('v1.0.0');
       expect(release?.original_url).toContain('releases');
 
-      // Check that starred repo was also parsed
-      const starred = result.items.find((i) => i.title?.includes('Starred'));
+      // Check that starred repo's latest release was parsed
+      const starred = result.items.find((i) => i.title?.includes('Release v0.9.0'));
       expect(starred).toBeDefined();
-      expect(starred?.title).toContain('octocat/hello-world');
+      expect(starred?.title).toContain('octocat/hello-world Release: Release v0.9.0');
     });
 
     it('should filter by since parameter', async () => {
@@ -288,7 +304,7 @@ describe('GitHubConnector', () => {
       expect(items[0].original_url).toContain('releases');
     });
 
-    it('should parse push event data', () => {
+    it('should ignore push event data', () => {
       const rawData = {
         type: 'events',
         data: [
@@ -326,11 +342,7 @@ describe('GitHubConnector', () => {
 
       const items = connector.parseResponse(rawData);
 
-      expect(items).toHaveLength(1);
-      expect(items[0].external_id).toBe('github-event-456');
-      expect(items[0].content_type).toBe('commit');
-      expect(items[0].title).toContain('2 commits');
-      expect(items[0].author_name).toBe('devuser');
+      expect(items).toHaveLength(0);
     });
 
     it('should return empty array for unknown event types', () => {

@@ -1,10 +1,17 @@
-import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ConflictException,
+  forwardRef,
+} from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
 import { platformConnections } from '../common/database/schema';
 import { ConnectorRegistry } from '../connectors/connector.registry';
+import { SyncScheduler } from '../sync/sync.scheduler';
 import type { CreateConnectionDto, UpdateConnectionDto } from './dto';
 
 import { encryptAuthData, decryptAuthData } from '../common/utils/encryption.util';
@@ -14,6 +21,7 @@ export class ConnectionsService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly connectorRegistry: ConnectorRegistry,
+    @Inject(forwardRef(() => SyncScheduler)) private readonly syncScheduler: SyncScheduler,
   ) {}
 
   /**
@@ -73,6 +81,15 @@ export class ConnectionsService {
           status: platformConnections.status,
           sync_interval_minutes: platformConnections.syncIntervalMinutes,
         });
+
+      if (connection.connection_type === 'api' && connection.status === 'active') {
+        await this.syncScheduler.scheduleConnection(
+          connection.id,
+          userId,
+          connection.platform,
+          connection.sync_interval_minutes,
+        );
+      }
 
       return connection;
     });
@@ -156,6 +173,19 @@ export class ConnectionsService {
           updated_at: platformConnections.updatedAt,
         });
 
+      if (updated.connection_type === 'api') {
+        if (updated.status === 'active') {
+          await this.syncScheduler.updateConnection(
+            updated.id,
+            userId,
+            updated.platform,
+            updated.sync_interval_minutes,
+          );
+        } else {
+          await this.syncScheduler.removeConnection(updated.id);
+        }
+      }
+
       return updated;
     });
   }
@@ -175,6 +205,7 @@ export class ConnectionsService {
       }
 
       await tx.delete(platformConnections).where(eq(platformConnections.id, connectionId));
+      await this.syncScheduler.removeConnection(connectionId);
     });
   }
 

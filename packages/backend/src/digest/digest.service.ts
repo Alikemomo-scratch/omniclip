@@ -465,7 +465,7 @@ export class DigestService {
    */
   private stubAIResponse(prompt: string): string {
     // Detect which type of prompt this is
-    if (prompt.includes('Summarize each of the following content items in 1-2 sentences each')) {
+    if (prompt.includes('Summarize each of the following content items in 1-3 sentences each')) {
       // Batch MAP prompt — extract item IDs from the prompt
       const idMatches = prompt.match(/\(id: ([^,]+),/g) ?? [];
       const ids = idMatches.map((m) => m.replace('(id: ', '').replace(',', ''));

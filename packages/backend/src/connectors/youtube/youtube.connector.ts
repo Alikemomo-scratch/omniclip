@@ -322,11 +322,20 @@ export class YouTubeConnector implements PlatformConnector {
       const snippet = activity.snippet;
       const thumbnailUrl = this.extractThumbnail(snippet.thumbnails);
 
+      const title = snippet.title || 'Untitled Video';
+      const body = snippet.description || null;
+
+      // Filter out shorts
+      const isShorts =
+        title.toLowerCase().includes('#shorts') || (body && body.toLowerCase().includes('#shorts'));
+
+      if (isShorts) continue;
+
       items.push({
         external_id: `yt-${videoId}`,
         content_type: 'video',
-        title: snippet.title || 'Untitled Video',
-        body: snippet.description || null,
+        title,
+        body,
         media_urls: thumbnailUrl ? [thumbnailUrl] : [],
         metadata: {
           channel_id: snippet.channelId || null,
