@@ -116,6 +116,7 @@ To collect data from Twitter/X and Xiaohongshu without needing API keys, you mus
 2. Register a new local account and log in.
 3. Navigate to the **Connections** page.
 4. Add your desired platforms (e.g., provide a GitHub Personal Access Token, or authenticate YouTube via OAuth).
+   - **Configure Sync Interval:** During connection setup, you can select how often OmniClip should sync data from this platform (e.g., Every 1 hour, Every 1 day, Every 1 month).
 5. For Extension-based platforms (Twitter, Xiaohongshu), simply log into those websites in your browser; the extension will automatically intercept and sync your saved content to your OmniClip feed!
 
 ---
