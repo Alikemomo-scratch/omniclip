@@ -8,14 +8,16 @@ In an era of algorithmic feeds that chase the latest trends, endless scrolling, 
 
 ---
 
-## Supported Platforms
+## Supported Platforms & Deep Filtering
 
-Currently, OmniClip supports gathering content from the following platforms:
+Currently, OmniClip supports gathering content from the following platforms. To guarantee high-signal information, **OmniClip completely ignores algorithmic recommendations (e.g. "For You" or "Discover" pages) across all platforms**.
 
-- **GitHub** (Starred Repositories / Releases)
-- **YouTube** (Subscriptions / New Videos)
-- **Twitter / X** (Bookmarks / Timeline via Extension)
-- **Xiaohongshu / RED** (Saved Posts via Extension)
+- **GitHub**: Tracks `Releases`, `CreateEvent` (open-sourcing), and `WatchEvent` from your followed developers. It also actively fetches the latest releases of your **Starred Repositories**. (All noisy commits and issue tracking are ignored).
+- **YouTube**: Tracks full videos from your **Subscriptions**. (Noisy `#shorts` are automatically filtered out).
+- **Twitter / X**: Intercepts only your **"Following"** timeline via the extension.
+- **Xiaohongshu / RED**: Intercepts only your **"Follow"** feed via the extension.
+
+_Note: You can configure custom sync intervals (e.g., 1 hour, 1 day, 1 month) for each platform independently based on its content velocity._
 
 ---
 
