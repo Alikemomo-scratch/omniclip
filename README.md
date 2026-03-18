@@ -6,6 +6,11 @@ In an era of algorithmic feeds that chase the latest trends, endless scrolling, 
 
 **Not chasing trends. Breaking the information cocoon.**
 
+### Why the name "OmniClip"?
+
+- **Omni**: Meaning "all" or "universal." It represents the ability to aggregate content from across the vast, fragmented web—gathering from any platform you care about.
+- **Clip**: Like a newspaper clipping. It represents the act of cutting out the noise, extracting only the most valuable, high-signal information, and saving it into a clean, readable format.
+
 ---
 
 ## Supported Platforms & Deep Filtering
