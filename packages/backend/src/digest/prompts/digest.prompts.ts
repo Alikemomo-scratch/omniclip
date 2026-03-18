@@ -81,11 +81,11 @@ export function buildReducePrompt(summaries: ItemSummary[], language: string): s
     (s, i) => `[${i + 1}] (id: ${s.id}, platform: ${s.platform}) ${s.summary}`,
   );
 
-  return `You are an AI content curator. Given the following ${summaries.length} content item summaries from multiple platforms, do the following:
+  return `You are an expert tech curator and analyst. Given the following ${summaries.length} high-signal content items (e.g. major open-source releases, new videos, and creator updates) from multiple platforms, do the following:
 
-1. Group them by topic/theme (each item should belong to exactly one group)
-2. For each group, write a concise summary highlighting key insights
-3. Write a brief cross-platform trend analysis paragraph
+1. Group them by overarching topic or theme (e.g., "AI & LLMs", "Frontend Development", "Productivity Tools").
+2. For each group, write a concise but highly informative summary that captures the essence of the updates, specifically highlighting new features, product launches, or core arguments.
+3. Write a brief cross-platform trend analysis paragraph identifying any broader movements or recurring topics across the ecosystem.
 
 ${langInstruction}
 
@@ -97,7 +97,7 @@ Respond in this exact JSON format (no markdown, no code fences):
   "topic_groups": [
     {
       "topic": "Topic Name",
-      "summary": "Group summary...",
+      "summary": "Group summary detailing key updates...",
       "item_ids": ["id1", "id2"],
       "platforms": ["github", "youtube"]
     }
@@ -123,7 +123,7 @@ export function buildSimpleSummaryPrompt(items: ContentItemForDigest[], language
     return parts.join('\n');
   });
 
-  return `Summarize each of the following ${items.length} content items individually. ${langInstruction}
+  return `You are an expert tech curator. Summarize each of the following ${items.length} high-signal content items individually. Focus on extracting the core value (new features, key takeaways, announcements). ${langInstruction}
 
 ${itemLines.join('\n\n')}
 
@@ -132,7 +132,7 @@ Respond in this exact JSON format (no markdown, no code fences):
   "topic_groups": [
     {
       "topic": "Individual Summaries",
-      "summary": "Summary of all items...",
+      "summary": "Detailed summary of all items highlighting their core value...",
       "item_ids": ["id1", "id2"],
       "platforms": ["platform1"]
     }
@@ -173,12 +173,12 @@ export function buildBatchMapPrompt(items: ContentItemForDigest[], language: str
     return parts.join('\n');
   });
 
-  return `Summarize each of the following content items in 1-2 sentences each. ${langInstruction}
+  return `Summarize each of the following content items in 1-3 sentences each. Focus heavily on extracting the core signal: for releases, what are the major new features? For videos/posts, what is the main takeaway or thesis? ${langInstruction}
 
 ${itemLines.join('\n\n')}
 
 Respond in this exact JSON format (no markdown, no code fences):
 [
-  { "id": "item_id", "summary": "1-2 sentence summary" }
+  { "id": "item_id", "summary": "1-3 sentence detailed summary extracting key features/takeaways" }
 ]`;
 }

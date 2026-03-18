@@ -179,6 +179,25 @@ describe('YouTubeConnector.parseResponse()', () => {
     expect(items).toHaveLength(0);
   });
 
+  it('should skip activities that have #shorts in title or description', () => {
+    const items = connector.parseResponse({
+      type: 'activities',
+      data: [
+        buildActivityItem({
+          snippet: { ...buildActivityItem().snippet, title: 'Check out this #shorts video!' },
+        }),
+        buildActivityItem({
+          snippet: {
+            ...buildActivityItem().snippet,
+            description: 'Description with #Shorts inside',
+          },
+        }),
+      ],
+    });
+
+    expect(items).toHaveLength(0);
+  });
+
   it('should handle missing thumbnails gracefully', () => {
     const activity = buildActivityItem({
       snippet: { ...buildActivityItem().snippet, thumbnails: {} },
