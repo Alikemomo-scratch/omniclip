@@ -55,6 +55,14 @@ const patchedFetch: typeof window.fetch = async function (
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
     if (url.includes(FEED_URL_PATTERN)) {
+      // Must be on the "follow" tab to intercept (ignore algorithmic "explore" feed)
+      // Xiaohongshu follow tab URL path usually contains 'follow' or the API request specifies follow
+      const isFollowFeed = window.location.pathname.includes('follow') || url.includes('follow');
+
+      if (!isFollowFeed) {
+        return response;
+      }
+
       // Clone the response so we don't consume the body
       const cloned = response.clone();
       // Process asynchronously to not block the page

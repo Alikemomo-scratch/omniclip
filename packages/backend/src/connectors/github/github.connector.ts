@@ -88,11 +88,9 @@ export class GitHubConnector implements PlatformConnector {
     let rateLimitRemaining: number | undefined;
     const allItems: ContentItemInput[] = [];
 
-    // 1. Fetch starred repos
+    // 1. Fetch latest releases of recently starred repos
     try {
-      const starredUrl = since
-        ? `/user/starred?per_page=100&sort=created&direction=desc`
-        : `/user/starred?per_page=100&sort=created&direction=desc`;
+      const starredUrl = `/user/starred?per_page=30&sort=created&direction=desc`;
 
       const starredResponse = await this.githubFetch(starredUrl, token, {
         Accept: 'application/vnd.github.v3.star+json',
@@ -105,35 +103,43 @@ export class GitHubConnector implements PlatformConnector {
       rateLimitRemaining = this.getRateLimitRemaining(starredResponse);
 
       if (Array.isArray(starredData)) {
-        for (const starred of starredData) {
-          const starredAt = starred.starred_at
-            ? new Date(starred.starred_at)
-            : starred.pushed_at
-              ? new Date(starred.pushed_at)
-              : new Date();
-
-          // Filter by since
-          if (since && starredAt < since) continue;
-
+        const releasePromises = starredData.map(async (starred) => {
           const repo = starred.full_name ? starred : starred.repo || starred;
+          try {
+            const releaseUrl = `/repos/${repo.full_name}/releases/latest`;
+            const releaseResponse = await this.githubFetch(releaseUrl, token);
+            apiCalls++;
 
-          allItems.push({
-            external_id: `github-star-${repo.id || repo.full_name}`,
-            content_type: 'release', // starred repos treated as notable releases
-            title: `Starred: ${repo.full_name}`,
-            body: repo.description || null,
-            media_urls: [],
-            metadata: {
-              stars: repo.stargazers_count,
-              language: repo.language,
-              source: 'starred',
-            },
-            author_name: repo.owner?.login || null,
-            author_url: repo.owner?.html_url || null,
-            original_url: repo.html_url,
-            published_at: starredAt,
-          });
-        }
+            if (releaseResponse.ok) {
+              const release = await releaseResponse.json();
+              const publishedAt = new Date(release.published_at || release.created_at);
+
+              // Filter by since
+              if (!since || publishedAt >= since) {
+                allItems.push({
+                  external_id: `github-starred-release-${release.id}`,
+                  content_type: 'release',
+                  title: `${repo.full_name} Release: ${release.name || release.tag_name}`,
+                  body: release.body || null,
+                  media_urls: [],
+                  metadata: {
+                    tag_name: release.tag_name,
+                    repo: repo.full_name,
+                    source: 'starred_repo',
+                  },
+                  author_name: release.author?.login || repo.owner?.login || null,
+                  author_url: release.author?.html_url || repo.owner?.html_url || null,
+                  original_url: release.html_url,
+                  published_at: publishedAt,
+                });
+              }
+            }
+          } catch (e) {
+            // Ignore individual repo fetch errors to not fail the whole sync
+          }
+        });
+
+        await Promise.all(releasePromises);
       }
     } catch (error) {
       if (error instanceof ConnectorError) throw error;
@@ -245,66 +251,69 @@ export class GitHubConnector implements PlatformConnector {
           break;
         }
 
-        case 'PushEvent': {
-          const commits =
-            (event.payload.commits as Array<{
-              sha: string;
-              message: string;
-              url: string;
-            }>) || [];
-          const ref = (event.payload.ref as string) || '';
-          const branch = ref.replace('refs/heads/', '');
-
+        case 'CreateEvent': {
+          if (event.payload.ref_type !== 'repository') break;
           items.push({
             external_id: `github-event-${event.id}`,
-            content_type: 'commit',
-            title: `${commits.length} commits to ${event.repo.name}/${branch}`,
-            body: commits.map((c) => `- ${c.message}`).join('\n'),
+            content_type: 'release',
+            title: `New Repository: ${event.repo.name}`,
+            body: (event.payload.description as string) || null,
             media_urls: [],
             metadata: {
               repo: event.repo.name,
-              branch,
-              commit_count: commits.length,
-              event_type: 'PushEvent',
+              event_type: 'CreateEvent',
             },
             author_name: event.actor.login,
             author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: `https://github.com/${event.repo.name}/commits/${branch}`,
+            original_url: `https://github.com/${event.repo.name}`,
             published_at: new Date(event.created_at),
           });
           break;
         }
 
-        case 'IssuesEvent': {
-          const issue = event.payload.issue as {
-            number: number;
-            title: string;
-            body: string | null;
-            html_url: string;
-          };
+        case 'PublicEvent': {
+          items.push({
+            external_id: `github-event-${event.id}`,
+            content_type: 'release',
+            title: `Open Sourced: ${event.repo.name}`,
+            body: null,
+            media_urls: [],
+            metadata: {
+              repo: event.repo.name,
+              event_type: 'PublicEvent',
+            },
+            author_name: event.actor.login,
+            author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
+            original_url: `https://github.com/${event.repo.name}`,
+            published_at: new Date(event.created_at),
+          });
+          break;
+        }
+
+        case 'WatchEvent': {
           const action = event.payload.action as string;
+          if (action !== 'started') break;
 
           items.push({
             external_id: `github-event-${event.id}`,
-            content_type: 'issue',
-            title: `[${action}] ${issue.title}`,
-            body: issue.body || null,
+            content_type: 'release',
+            title: `Starred: ${event.repo.name}`,
+            body: null,
             media_urls: [],
             metadata: {
               repo: event.repo.name,
-              issue_number: issue.number,
               action,
-              event_type: 'IssuesEvent',
+              event_type: 'WatchEvent',
             },
             author_name: event.actor.login,
             author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: issue.html_url,
+            original_url: `https://github.com/${event.repo.name}`,
             published_at: new Date(event.created_at),
           });
           break;
         }
 
-        // Skip non-content events (WatchEvent, ForkEvent, etc.)
+        // Skip non-content events (PushEvent, IssuesEvent, etc.)
         default:
           break;
       }

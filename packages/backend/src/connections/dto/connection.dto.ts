@@ -14,7 +14,7 @@ export class CreateConnectionDto {
   @IsOptional()
   @IsInt()
   @Min(5)
-  @Max(1440)
+  @Max(43200)
   sync_interval_minutes?: number;
 }
 
@@ -26,6 +26,6 @@ export class UpdateConnectionDto {
   @IsOptional()
   @IsInt()
   @Min(5)
-  @Max(1440)
+  @Max(43200)
   sync_interval_minutes?: number;
 }

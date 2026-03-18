@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { BullBoardModule } from '@bull-board/nestjs';
@@ -43,7 +43,7 @@ import { ContentModule } from '../content';
       name: SYNC_QUEUE_NAME,
       adapter: BullMQAdapter,
     }),
-    ConnectionsModule,
+    forwardRef(() => ConnectionsModule),
     ContentModule,
   ],
   controllers: [SyncController, ExtensionSyncController],

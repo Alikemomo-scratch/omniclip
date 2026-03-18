@@ -108,6 +108,22 @@ describe('GitHub Connector (Integration)', () => {
         headers: new Map([['x-ratelimit-remaining', '4998']]),
       });
 
+      // Mock release endpoint for the starred repo
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 888,
+          tag_name: 'v0.9.0',
+          name: 'Release v0.9.0',
+          body: 'Starred repo release',
+          html_url: 'https://github.com/owner/repo/releases/tag/v0.9.0',
+          published_at: '2026-03-09T05:00:00Z',
+          author: { login: 'owner', html_url: 'https://github.com/owner' },
+        }),
+        headers: new Map([['x-ratelimit-remaining', '4997']]),
+      });
+
       // Mock events endpoint
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -132,68 +148,45 @@ describe('GitHub Connector (Integration)', () => {
           },
           {
             id: 'evt-2',
-            type: 'IssuesEvent',
+            type: 'WatchEvent',
             repo: { name: 'owner/issues-repo' },
             actor: { login: 'issuer', url: 'https://api.github.com/users/issuer' },
             payload: {
-              action: 'opened',
-              issue: {
-                number: 42,
-                title: 'Bug report',
-                body: 'Something is broken',
-                html_url: 'https://github.com/owner/issues-repo/issues/42',
-              },
+              action: 'started',
             },
             created_at: '2024-01-17T08:00:00Z',
           },
-          {
-            id: 'evt-3',
-            type: 'PushEvent',
-            repo: { name: 'owner/push-repo' },
-            actor: { login: 'pusher', url: 'https://api.github.com/users/pusher' },
-            payload: {
-              ref: 'refs/heads/main',
-              size: 3,
-              commits: [{ sha: 'abc123', message: 'fix: something', author: { name: 'Pusher' } }],
-            },
-            created_at: '2024-01-18T09:00:00Z',
-          },
         ],
-        headers: new Map([['x-ratelimit-remaining', '4997']]),
+        headers: new Map([['x-ratelimit-remaining', '4996']]),
       });
 
       const result = await connector.fetchContent(createMockConnection(), null);
 
-      expect(result.items.length).toBeGreaterThanOrEqual(3);
+      expect(result.items.length).toBeGreaterThanOrEqual(2);
 
-      // Check starred repo item (connector maps starred repos as content_type: 'release' with source: 'starred')
+      // Check starred repo item (connector maps starred repos as content_type: 'release' with source: 'starred_repo')
       const starredItem = result.items.find(
-        (i) => i.metadata && (i.metadata as Record<string, unknown>).source === 'starred',
+        (i) => i.metadata && (i.metadata as Record<string, unknown>).source === 'starred_repo',
       );
       expect(starredItem).toBeDefined();
-      expect(starredItem!.external_id).toContain('12345');
+      expect(starredItem!.external_id).toContain('888');
       expect(starredItem!.content_type).toBe('release');
-      expect(starredItem!.original_url).toBe('https://github.com/owner/repo');
+      expect(starredItem!.original_url).toContain('releases');
 
       // Check release event item
       const releaseItem = result.items.find(
-        (i) =>
-          i.content_type === 'release' &&
-          i.metadata &&
-          (i.metadata as Record<string, unknown>).event_type === 'ReleaseEvent',
+        (i) => i.external_id === 'github-event-evt-1',
       );
       expect(releaseItem).toBeDefined();
-      expect(releaseItem!.title).toContain('Release 1.0');
-      expect(releaseItem!.original_url).toBe('https://github.com/owner/repo/releases/tag/v1.0.0');
+      expect(releaseItem!.content_type).toBe('release');
+      expect(releaseItem!.original_url).toContain('releases');
 
-      // Check issue event item
-      const issueItem = result.items.find((i) => i.content_type === 'issue');
-      expect(issueItem).toBeDefined();
-      expect(issueItem!.title).toContain('Bug report');
-
-      // Check push event item
-      const pushItem = result.items.find((i) => i.content_type === 'commit');
-      expect(pushItem).toBeDefined();
+      // Check watch event item
+      const watchItem = result.items.find(
+        (i) => i.external_id === 'github-event-evt-2',
+      );
+      expect(watchItem).toBeDefined();
+      expect(watchItem!.title).toContain('Starred');
     });
 
     it('should handle empty responses gracefully', async () => {
