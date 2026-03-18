@@ -32,11 +32,12 @@ If you are an AI assistant tasked with helping the user set up this project, **d
 
 2. **Clone:** Clone the repository and `cd` into it if not already there.
 3. **Dependencies:** Run `pnpm install`.
-4. **Environment Files:** Copy `.env.example` to `.env` in both `packages/backend` and `packages/frontend`.
-5. **API Key:** Ask the user for their preferred AI API Key (`OPENAI_API_KEY` or `GEMINI_API_KEY`). Once provided, inject it into `packages/backend/.env`.
-6. **Infrastructure:** Run `docker-compose up -d` to start PostgreSQL and Redis. Use a command (like `pg_isready` or retry logic) to ensure the database is actually accepting connections rather than just sleeping.
-7. **Database Migration:** Once the DB is ready, run `pnpm --filter backend db:migrate`.
-8. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instead, instruct the user to run `pnpm dev` in their own terminal, and guide them to **Step 6 & 7** below so they can install the Chrome extension and authenticate their platforms.
+4. **Build:** Run `pnpm build` to compile the frontend, backend, and the Chrome extension.
+5. **Environment Files:** Copy `.env.example` to `.env` in both `packages/backend` and `packages/frontend`.
+6. **API Key:** Ask the user for their preferred AI API Key (`OPENAI_API_KEY` or `GEMINI_API_KEY`). Once provided, inject it into `packages/backend/.env`.
+7. **Infrastructure:** Run `docker-compose up -d` to start PostgreSQL and Redis. Use a command (like `pg_isready` or retry logic) to ensure the database is actually accepting connections rather than just sleeping.
+8. **Database Migration:** Once the DB is ready, run `pnpm --filter backend db:migrate`.
+9. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instead, instruct the user to run `pnpm dev` in their own terminal, and guide them to **Step 6 & 7** below so they can install the Chrome extension and authenticate their platforms.
 
 ---
 
@@ -51,12 +52,13 @@ Follow these steps to configure and run OmniClip on your local machine.
 - **Docker & Docker Compose** (for running PostgreSQL and Redis)
 - **Chrome / Chromium browser** (for the OmniClip extension)
 
-### Step 1: Clone the Repository & Install Dependencies (Agent can do this)
+### Step 1: Clone the Repository & Build (Agent can do this)
 
 ```bash
 git clone https://github.com/MomoP32/omniclip.git
 cd omniclip
 pnpm install
+pnpm build
 ```
 
 ### Step 2: Start the Database and Redis (Agent can do this)
