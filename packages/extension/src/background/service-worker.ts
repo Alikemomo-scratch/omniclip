@@ -36,7 +36,7 @@ const STORAGE_KEYS = {
   BACKEND_URL: 'backend_url',
 } as const;
 
-const DEFAULT_BACKEND_URL = 'http://localhost:3000';
+const DEFAULT_BACKEND_URL = 'http://localhost:3001';
 
 // ──────────────────────────────────────────────
 // Storage helpers
