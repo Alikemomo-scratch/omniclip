@@ -80,12 +80,22 @@ cp packages/frontend/.env.example packages/frontend/.env
 ```
 
 **必须修改的配置：**
-用文本编辑器打开 `packages/backend/.env`，添加你的 OpenAI 或 Gemini API Key，以便启用 AI 智能摘要功能：
+用文本编辑器打开 `packages/backend/.env` 并完成以下配置：
+
+1. **AI 密钥 (必填)**：添加你的 OpenAI 或 Gemini API Key，以便启用 AI 智能摘要功能：
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
 # 或者
 GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+2. **YouTube OAuth 配置 (如果你需要连接 YouTube 则必填)**：如果你打算连接 YouTube，你必须去 Google Cloud Console 创建一个项目，启用 "YouTube Data API v3"，创建 OAuth 2.0 Web 客户端凭据，然后填入这里：
+
+```env
+YOUTUBE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+YOUTUBE_CLIENT_SECRET=your-google-client-secret
+YOUTUBE_REDIRECT_URI=http://localhost:3000/connections/youtube/callback
 ```
 
 _(如果你使用的是默认的 docker-compose.yml，`DATABASE_URL` 和 `REDIS_URL` 保持默认即可。)_

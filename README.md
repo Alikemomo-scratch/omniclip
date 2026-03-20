@@ -80,12 +80,22 @@ cp packages/frontend/.env.example packages/frontend/.env
 ```
 
 **Required Configuration:**
-Open `packages/backend/.env` in your text editor and add your OpenAI or Gemini API key for the AI Digest feature to work:
+Open `packages/backend/.env` in your text editor and configure the following:
+
+1. **AI API Key (Required):** Add your OpenAI or Gemini API key for the AI Digest feature to work:
 
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key-here
 # OR
 GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+2. **YouTube OAuth (Optional, but required for YouTube connection):** If you plan to connect YouTube, you must create a Google Cloud Project, enable the "YouTube Data API v3", create OAuth 2.0 Web Client credentials, and add them here:
+
+```env
+YOUTUBE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+YOUTUBE_CLIENT_SECRET=your-google-client-secret
+YOUTUBE_REDIRECT_URI=http://localhost:3000/connections/youtube/callback
 ```
 
 _(Leave the `DATABASE_URL` and `REDIS_URL` as their defaults if you are using the provided `docker-compose.yml`.)_
