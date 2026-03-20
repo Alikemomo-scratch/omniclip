@@ -111,7 +111,7 @@ export class GitHubConnector implements PlatformConnector {
             apiCalls++;
 
             if (releaseResponse.ok) {
-              const release = await releaseResponse.json();
+              const release = (await releaseResponse.json()) as any;
               const publishedAt = new Date(release.published_at || release.created_at);
 
               // Filter by since
