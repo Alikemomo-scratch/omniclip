@@ -95,7 +95,7 @@ GEMINI_API_KEY=your-gemini-api-key-here
 ```env
 YOUTUBE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 YOUTUBE_CLIENT_SECRET=your-google-client-secret
-YOUTUBE_REDIRECT_URI=http://localhost:3000/connections/youtube/callback
+YOUTUBE_REDIRECT_URI=http://localhost:3001/api/v1/auth/youtube/callback
 ```
 
 _(Leave the `DATABASE_URL` and `REDIS_URL` as their defaults if you are using the provided `docker-compose.yml`.)_
