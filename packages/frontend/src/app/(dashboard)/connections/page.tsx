@@ -10,7 +10,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v
 interface PlatformConfig {
   id: string;
   label: string;
-  authType: 'token' | 'oauth';
+  authType: 'token' | 'oauth' | 'extension';
   authField?: string;
   placeholder?: string;
 }
@@ -24,6 +24,8 @@ const PLATFORMS: PlatformConfig[] = [
     placeholder: 'ghp_...',
   },
   { id: 'youtube', label: 'YouTube', authType: 'oauth' },
+  { id: 'twitter', label: 'Twitter / X', authType: 'extension' },
+  { id: 'xiaohongshu', label: 'Xiaohongshu / 小红书', authType: 'extension' },
 ];
 
 export default function ConnectionsPage() {
@@ -108,7 +110,7 @@ export default function ConnectionsPage() {
 
     createMutation.mutate({
       platform: selectedPlatform,
-      connection_type: 'api',
+      connection_type: platform.authType === 'extension' ? 'extension' : 'api',
       auth_data: platform.authType === 'token' ? { [platform.authField!]: authToken } : undefined,
       sync_interval_minutes: parseInt(syncInterval, 10),
     });
@@ -188,6 +190,25 @@ export default function ConnectionsPage() {
                         className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
                       >
                         Connect {platform.label} via OAuth
+                      </button>
+                    </div>
+                  );
+                }
+
+                if (platform.authType === 'extension') {
+                  return (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-3">
+                        {platform.label} is synced automatically via the OmniClip browser extension.
+                        Make sure the extension is installed and you are logged into{' '}
+                        {platform.label} in your browser.
+                      </p>
+                      <button
+                        type="submit"
+                        disabled={createMutation.isPending}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {createMutation.isPending ? 'Connecting...' : `Enable ${platform.label}`}
                       </button>
                     </div>
                   );
