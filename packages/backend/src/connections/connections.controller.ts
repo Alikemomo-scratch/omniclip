@@ -83,4 +83,12 @@ export class ConnectionsController {
   async testConnection(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.connectionsService.testConnection(req.user.userId, id);
   }
+
+  /**
+   * POST /connections/:id/sync — Manually trigger a sync job.
+   */
+  @Post(':id/sync')
+  async triggerSync(@Request() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.connectionsService.triggerManualSync(req.user.userId, id);
+  }
 }

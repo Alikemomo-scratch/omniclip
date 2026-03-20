@@ -84,6 +84,16 @@ export default function ConnectionsPage() {
     mutationFn: (id: string) => connectionsApi.test(id),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: (id: string) => connectionsApi.syncNow(id),
+    onSuccess: () => {
+      alert('Sync triggered successfully. Content will appear in your feed shortly.');
+    },
+    onError: (err: ApiError) => {
+      alert(`Sync failed: ${err.message}`);
+    },
+  });
+
   function handleConnectOAuth(platformId: string) {
     // Redirect to backend OAuth endpoint — the backend will redirect to the provider's consent screen
     const token = getToken();
@@ -226,6 +236,7 @@ export default function ConnectionsPage() {
               key={conn.id}
               connection={conn}
               onTest={() => testMutation.mutate(conn.id)}
+              onSync={() => syncMutation.mutate(conn.id)}
               onDelete={() => {
                 if (confirm('Are you sure you want to disconnect?')) {
                   deleteMutation.mutate(conn.id);
@@ -240,6 +251,13 @@ export default function ConnectionsPage() {
                     }
                   : undefined
               }
+              syncState={
+                syncMutation.variables === conn.id
+                  ? {
+                      loading: syncMutation.isPending,
+                    }
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -251,16 +269,22 @@ export default function ConnectionsPage() {
 function ConnectionCard({
   connection,
   onTest,
+  onSync,
   onDelete,
   testResult,
+  syncState,
 }: {
   connection: Connection;
   onTest: () => void;
+  onSync: () => void;
   onDelete: () => void;
   testResult?: {
     loading: boolean;
     data?: { status: string; message: string } | null;
     error?: ApiError | null;
+  };
+  syncState?: {
+    loading: boolean;
   };
 }) {
   const statusColor =
@@ -294,6 +318,16 @@ function ConnectionCard({
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
             {connection.status}
           </span>
+
+          {connection.connection_type === 'api' && (
+            <button
+              onClick={onSync}
+              disabled={syncState?.loading || connection.status !== 'active'}
+              className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
+            >
+              {syncState?.loading ? 'Syncing...' : 'Sync Now'}
+            </button>
+          )}
 
           <button
             onClick={onTest}

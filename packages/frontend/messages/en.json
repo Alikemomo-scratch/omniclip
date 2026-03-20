@@ -21,6 +21,8 @@
     "status": "Status",
     "test": "Test",
     "testing": "Testing...",
+    "syncNow": "Sync Now",
+    "syncing": "Syncing...",
     "delete": "Delete"
   },
   "Feed": {

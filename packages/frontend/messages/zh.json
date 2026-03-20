@@ -21,6 +21,8 @@
     "status": "状态",
     "test": "测试",
     "testing": "测试中...",
+    "syncNow": "立即同步",
+    "syncing": "同步中...",
     "delete": "删除"
   },
   "Feed": {

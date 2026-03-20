@@ -233,6 +233,25 @@ export class ConnectionsService {
   }
 
   /**
+   * Manually trigger a sync for a connection.
+   */
+  async triggerManualSync(userId: string, connectionId: string) {
+    const connection = await this.findById(userId, connectionId);
+
+    if (connection.connection_type !== 'api') {
+      throw new ConflictException('Can only manually sync API connections');
+    }
+
+    if (connection.status !== 'active') {
+      throw new ConflictException('Cannot sync an inactive connection');
+    }
+
+    await this.syncScheduler.triggerManualSync(connection.id, userId, connection.platform);
+
+    return { success: true, message: 'Sync job triggered' };
+  }
+
+  /**
    * Get full connection data including auth_data (for internal sync use only).
    */
   async findByIdWithAuth(userId: string, connectionId: string) {

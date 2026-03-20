@@ -219,6 +219,10 @@ export const connectionsApi = {
   test(id: string): Promise<{ status: string; message: string }> {
     return apiClient.post(`/connections/${id}/test`);
   },
+
+  syncNow(id: string): Promise<{ success: boolean; message: string }> {
+    return apiClient.post(`/connections/${id}/sync`);
+  },
 };
 
 // ====================================

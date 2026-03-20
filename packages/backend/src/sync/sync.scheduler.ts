@@ -112,6 +112,19 @@ export class SyncScheduler implements OnApplicationBootstrap {
   }
 
   /**
+   * Manually trigger a one-off sync job immediately.
+   */
+  async triggerManualSync(connectionId: string, userId: string, platform: string): Promise<void> {
+    const jobId = `manual-sync:${connectionId}:${Date.now()}`;
+    await this.syncQueue.add(
+      jobId,
+      { connectionId, userId, platform },
+      { jobId }, // No repeat option
+    );
+    this.logger.log(`Manually triggered sync for connection ${connectionId}`);
+  }
+
+  /**
    * List recent sync jobs for a user (RLS-scoped).
    */
   async findRecentJobs(userId: string, query: SyncJobQueryDto): Promise<{ jobs: unknown[] }> {
