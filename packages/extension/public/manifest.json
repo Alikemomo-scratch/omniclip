@@ -8,7 +8,9 @@
     "https://www.xiaohongshu.com/*",
     "https://edith.xiaohongshu.com/*",
     "https://x.com/*",
-    "https://twitter.com/*"
+    "https://twitter.com/*",
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js",
