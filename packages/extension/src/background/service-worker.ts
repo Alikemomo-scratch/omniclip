@@ -204,6 +204,15 @@ async function refreshConnections(): Promise<void> {
         }
       }
       await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: newConns });
+
+      // Ensure alarms and trigger an immediate initial sync/heartbeat
+      for (const platform of Object.keys(newConns) as PlatformId[]) {
+        await ensureSyncAlarm(platform);
+        // Fire and forget initial sync to mark connection as healthy
+        syncPlatform(platform).catch((err) =>
+          console.error(`[OmniClip SW] Initial sync failed for ${platform}:`, err),
+        );
+      }
     }
   } catch (err) {
     console.error('[OmniClip SW] Failed to refresh connections:', err);
@@ -325,6 +334,8 @@ async function syncPlatform(platform: PlatformId): Promise<void> {
   const items = await getItems(platform);
   if (items.length === 0) {
     console.log(`[OmniClip SW] No items to sync for ${platform}`);
+    // Send heartbeat anyway to let backend know we are alive
+    await sendHeartbeat(platform, connection.id, 'active');
     return;
   }
 
