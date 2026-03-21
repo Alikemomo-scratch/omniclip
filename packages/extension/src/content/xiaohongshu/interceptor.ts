@@ -16,8 +16,9 @@ import { parseXiaohongshuFeed } from './parser';
 
 const FEED_URL_PATTERN = '/api/sns/web/v1/feed';
 
-// Save original fetch and toString for stealth
+// Save original fetch, XHR, and toString for stealth
 const originalFetch = window.fetch;
+const originalXHR = window.XMLHttpRequest;
 const originalToString = Function.prototype.toString;
 
 /**
@@ -87,12 +88,43 @@ const patchedFetch: typeof window.fetch = async function (
 window.fetch = patchedFetch;
 
 /**
+ * Patched XMLHttpRequest that intercepts XHS feed API responses.
+ */
+class PatchedXMLHttpRequest extends originalXHR {
+  constructor() {
+    super();
+    this.addEventListener('load', function () {
+      try {
+        if (this.responseURL.includes(FEED_URL_PATTERN)) {
+          // XHS follow feed check
+          const isFollowFeed =
+            window.location.pathname.includes('follow') || this.responseURL.includes('follow');
+          if (!isFollowFeed) return;
+
+          if (this.responseText) {
+            const data = JSON.parse(this.responseText);
+            const items = parseXiaohongshuFeed(data);
+            postToBridge(items);
+          }
+        }
+      } catch {
+        // Silently fail
+      }
+    });
+  }
+}
+window.XMLHttpRequest = PatchedXMLHttpRequest;
+
+/**
  * Stealth: patch Function.prototype.toString so our patched fetch
  * returns the same string as the original, avoiding detection.
  */
 Function.prototype.toString = function (this: Function): string {
   if (this === patchedFetch) {
     return originalToString.call(originalFetch);
+  }
+  if (this === PatchedXMLHttpRequest) {
+    return originalToString.call(originalXHR);
   }
   return originalToString.call(this);
 };
