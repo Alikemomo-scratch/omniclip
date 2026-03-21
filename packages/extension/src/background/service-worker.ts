@@ -148,6 +148,9 @@ async function handleGetStatus(): Promise<{
     }
   >;
 }> {
+  // Fire and forget connection refresh to keep them up to date in background
+  refreshConnections().catch(console.error);
+
   const token = await getUserToken();
   const connections = await getConnections();
 
@@ -181,6 +184,32 @@ async function handleGetStatus(): Promise<{
   return { loggedIn: !!token, platforms };
 }
 
+async function refreshConnections(): Promise<void> {
+  const token = await getUserToken();
+  if (!token) return;
+  const backendUrl = await getBackendUrl();
+  try {
+    const response = await fetch(`${backendUrl}/api/v1/connections`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const newConns: ConnectionsMap = {};
+      for (const conn of data.connections) {
+        if (conn.connection_type === 'extension' && conn.status === 'active') {
+          newConns[conn.platform as PlatformId] = {
+            id: conn.id,
+            interval: conn.sync_interval_minutes,
+          };
+        }
+      }
+      await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: newConns });
+    }
+  } catch (err) {
+    console.error('[OmniClip SW] Failed to refresh connections:', err);
+  }
+}
+
 /**
  * Handle manual sync trigger from popup.
  */
@@ -206,6 +235,7 @@ async function handleLogin(token: string, backendUrl?: string): Promise<void> {
     data[STORAGE_KEYS.BACKEND_URL] = backendUrl;
   }
   await chrome.storage.local.set(data);
+  await refreshConnections();
 }
 
 /**
