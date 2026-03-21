@@ -130,6 +130,11 @@ async function handleContentCollected(
 
   // Ensure alarm is scheduled
   await ensureSyncAlarm(platform);
+
+  // Immediately sync when new items are intercepted to provide real-time UX
+  syncPlatform(platform).catch((err) =>
+    console.error(`[OmniClip SW] Immediate sync failed for ${platform}:`, err),
+  );
 }
 
 /**
