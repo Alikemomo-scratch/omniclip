@@ -12,7 +12,25 @@ function optionalEntry(name: string, path: string): Record<string, string> {
   return existsSync(fullPath) ? { [name]: fullPath } : {};
 }
 
+// Plugin to move src/popup/index.html to popup/index.html
+function moveHtmlPlugin() {
+  return {
+    name: 'move-html-plugin',
+    enforce: 'post' as const,
+    generateBundle(options: any, bundle: any) {
+      for (const [key, asset] of Object.entries(bundle) as any[]) {
+        if (key === 'src/popup/index.html') {
+          asset.fileName = 'popup/index.html';
+          bundle['popup/index.html'] = asset;
+          delete bundle[key];
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [moveHtmlPlugin()],
   build: {
     outDir: 'dist',
     rollupOptions: {

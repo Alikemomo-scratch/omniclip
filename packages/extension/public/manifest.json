@@ -3,10 +3,7 @@
   "name": "OmniClip Content Aggregator",
   "version": "0.1.0",
   "description": "Collect content from Xiaohongshu and X/Twitter to your OmniClip dashboard",
-  "permissions": [
-    "storage",
-    "alarms"
-  ],
+  "permissions": ["storage", "alarms"],
   "host_permissions": [
     "https://www.xiaohongshu.com/*",
     "https://edith.xiaohongshu.com/*",
@@ -43,20 +40,14 @@
       "js": ["content/twitter/interceptor.js"],
       "world": "MAIN",
       "run_at": "document_start",
-      "exclude_matches": [
-        "https://x.com/i/flow/login*",
-        "https://twitter.com/i/flow/login*"
-      ]
+      "exclude_matches": ["https://x.com/i/flow/login*", "https://twitter.com/i/flow/login*"]
     },
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
       "js": ["bridge/bridge.js"],
       "world": "ISOLATED",
       "run_at": "document_start",
-      "exclude_matches": [
-        "https://x.com/i/flow/login*",
-        "https://twitter.com/i/flow/login*"
-      ]
+      "exclude_matches": ["https://x.com/i/flow/login*", "https://twitter.com/i/flow/login*"]
     }
   ],
   "action": {
