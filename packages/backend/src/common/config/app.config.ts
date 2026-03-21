@@ -36,8 +36,8 @@ export const appConfig = (): AppConfig => ({
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-    expiration: process.env.JWT_EXPIRATION || '15m',
-    refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
+    expiration: process.env.JWT_EXPIRATION || '30d',
+    refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '60d',
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
