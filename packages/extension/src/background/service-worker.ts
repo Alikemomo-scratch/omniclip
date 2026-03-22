@@ -224,6 +224,37 @@ async function refreshConnections(): Promise<void> {
   }
 }
 
+const PLATFORM_URLS: Record<PlatformId, string> = {
+  xiaohongshu: 'https://www.xiaohongshu.com/explore?tab=follow',
+  twitter: 'https://x.com/home',
+  github: '', // Not handled by extension
+  youtube: '', // Not handled by extension
+};
+
+/**
+ * Actively crawl the platform by opening a background tab,
+ * waiting for the content script to intercept the feed, and closing it.
+ */
+async function activeCrawl(platform: PlatformId): Promise<void> {
+  const url = PLATFORM_URLS[platform];
+  if (!url) return;
+
+  console.log(`[OmniClip SW] Starting active crawl for ${platform} at ${url}`);
+
+  try {
+    const tab = await chrome.tabs.create({ url, active: false });
+    if (!tab.id) return;
+
+    // Give the page 15 seconds to load and the interceptor to capture XHR/fetch
+    await new Promise((resolve) => setTimeout(resolve, 15000));
+
+    await chrome.tabs.remove(tab.id);
+    console.log(`[OmniClip SW] Finished active crawl and closed tab for ${platform}`);
+  } catch (err) {
+    console.error(`[OmniClip SW] Active crawl failed for ${platform}:`, err);
+  }
+}
+
 /**
  * Handle manual sync trigger from popup.
  */
@@ -231,6 +262,7 @@ async function handleManualSync(
   platform: PlatformId,
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await activeCrawl(platform);
     await syncPlatform(platform);
     return { success: true };
   } catch (err) {
@@ -303,9 +335,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (!alarm.name.startsWith(ALARM_NAME_PREFIX)) return;
 
   const platform = alarm.name.slice(ALARM_NAME_PREFIX.length) as PlatformId;
-  console.log(`[OmniClip SW] Alarm fired for ${platform}, starting sync`);
+  console.log(`[OmniClip SW] Alarm fired for ${platform}, starting active crawl and sync`);
 
   try {
+    await activeCrawl(platform);
     await syncPlatform(platform);
   } catch (err) {
     console.error(`[OmniClip SW] Sync failed for ${platform}:`, err);
