@@ -156,13 +156,13 @@ function renderPlatformCards(platforms: Record<string, PlatformStatus>): void {
     card.innerHTML = `
       <div class="platform-header">
         <span class="platform-name">${PLATFORM_LABELS[platform] ?? platform}</span>
-        <span class="badge ${info.status}">${info.status}</span>
+        <span class="badge ${info.status}">${info.status.toUpperCase()}</span>
       </div>
       <div class="platform-stats">
         <span>Buffered: ${info.itemsBuffered}</span>
         <span>Last sync: ${lastSyncText}</span>
       </div>
-      <button class="sync-btn" data-platform="${platform}" ${info.itemsBuffered === 0 ? 'disabled' : ''}>
+      <button class="sync-btn" data-platform="${platform}">
         Sync Now
       </button>
       ${errorHtml}
