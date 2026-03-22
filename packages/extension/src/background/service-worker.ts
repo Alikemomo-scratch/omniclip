@@ -225,8 +225,8 @@ async function refreshConnections(): Promise<void> {
 }
 
 const PLATFORM_URLS: Record<PlatformId, string> = {
-  xiaohongshu: 'https://www.xiaohongshu.com/explore?tab=follow',
-  twitter: 'https://x.com/home',
+  xiaohongshu: 'https://www.xiaohongshu.com/explore?tab=follow#omniclip-crawl',
+  twitter: 'https://x.com/home#omniclip-crawl',
   github: '', // Not handled by extension
   youtube: '', // Not handled by extension
 };
@@ -242,11 +242,14 @@ async function activeCrawl(platform: PlatformId): Promise<void> {
   console.log(`[OmniClip SW] Starting active crawl for ${platform} at ${url}`);
 
   try {
-    const tab = await chrome.tabs.create({ url, active: false });
+    // We create the tab as active: true.
+    // In background (active: false), Chrome often throttles network requests and timers for SPAs,
+    // which prevents the SPA from firing fetch/XHR requests to load the feed.
+    const tab = await chrome.tabs.create({ url, active: true });
     if (!tab.id) return;
 
-    // Give the page 15 seconds to load and the interceptor to capture XHR/fetch
-    await new Promise((resolve) => setTimeout(resolve, 15000));
+    // Give the page 10 seconds to load and the interceptor to capture XHR/fetch
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
     await chrome.tabs.remove(tab.id);
     console.log(`[OmniClip SW] Finished active crawl and closed tab for ${platform}`);

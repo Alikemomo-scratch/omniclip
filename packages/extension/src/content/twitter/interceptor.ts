@@ -123,3 +123,17 @@ Function.prototype.toString = function (this: Function): string {
   }
   return originalToString.call(this);
 };
+
+/**
+ * If opened by active crawler, scroll to trigger fetch
+ */
+window.addEventListener('load', () => {
+  if (window.location.hash.includes('omniclip-crawl')) {
+    const scrollInterval = setInterval(() => {
+      window.scrollBy(0, 2000);
+      document.body.scrollTop += 2000;
+      document.documentElement.scrollTop += 2000;
+    }, 1000);
+    setTimeout(() => clearInterval(scrollInterval), 8000);
+  }
+});

@@ -58,7 +58,7 @@ const patchedFetch: typeof window.fetch = async function (
     if (url.includes(FEED_URL_PATTERN)) {
       // Must be on the "follow" tab to intercept (ignore algorithmic "explore" feed)
       // Xiaohongshu follow tab URL path usually contains 'follow' or the API request specifies follow
-      const isFollowFeed = window.location.pathname.includes('follow') || url.includes('follow');
+      const isFollowFeed = window.location.href.includes('follow') || url.includes('follow');
 
       if (!isFollowFeed) {
         return response;
@@ -98,7 +98,7 @@ class PatchedXMLHttpRequest extends originalXHR {
         if (this.responseURL.includes(FEED_URL_PATTERN)) {
           // XHS follow feed check
           const isFollowFeed =
-            window.location.pathname.includes('follow') || this.responseURL.includes('follow');
+            window.location.href.includes('follow') || this.responseURL.includes('follow');
           if (!isFollowFeed) return;
 
           if (this.responseText) {
@@ -128,3 +128,18 @@ Function.prototype.toString = function (this: Function): string {
   }
   return originalToString.call(this);
 };
+
+/**
+ * If opened by active crawler, scroll to trigger fetch
+ */
+window.addEventListener('load', () => {
+  if (window.location.hash.includes('omniclip-crawl')) {
+    const scrollInterval = setInterval(() => {
+      window.scrollBy(0, 2000);
+      // Sometimes body scroll works better
+      document.body.scrollTop += 2000;
+      document.documentElement.scrollTop += 2000;
+    }, 1000);
+    setTimeout(() => clearInterval(scrollInterval), 8000);
+  }
+});
