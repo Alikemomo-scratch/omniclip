@@ -357,13 +357,24 @@ function ConnectionCard({
             {connection.status}
           </span>
 
-          {connection.connection_type === 'api' && (
+          {connection.connection_type === 'api' ? (
             <button
               onClick={onSync}
               disabled={syncState?.loading || connection.status !== 'active'}
               className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
             >
               {syncState?.loading ? 'Syncing...' : 'Sync Now'}
+            </button>
+          ) : (
+            <button
+              onClick={() =>
+                alert(
+                  'This connection is synced securely in the background by your OmniClip browser extension (based on the sync interval you configured). To trigger a manual sync immediately, open the OmniClip extension popup in your browser toolbar and click "Sync Now".',
+                )
+              }
+              className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100"
+            >
+              Sync Info
             </button>
           )}
 

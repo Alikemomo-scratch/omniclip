@@ -219,12 +219,8 @@
           "name": "content_items_user_id_users_id_fk",
           "tableFrom": "content_items",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -232,12 +228,8 @@
           "name": "content_items_connection_id_platform_connections_id_fk",
           "tableFrom": "content_items",
           "tableTo": "platform_connections",
-          "columnsFrom": [
-            "connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -271,12 +263,8 @@
           "name": "digest_items_digest_id_digests_id_fk",
           "tableFrom": "digest_items",
           "tableTo": "digests",
-          "columnsFrom": [
-            "digest_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["digest_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -284,12 +272,8 @@
           "name": "digest_items_content_item_id_content_items_id_fk",
           "tableFrom": "digest_items",
           "tableTo": "content_items",
-          "columnsFrom": [
-            "content_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["content_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -297,10 +281,7 @@
       "compositePrimaryKeys": {
         "digest_items_digest_id_content_item_id_pk": {
           "name": "digest_items_digest_id_content_item_id_pk",
-          "columns": [
-            "digest_id",
-            "content_item_id"
-          ]
+          "columns": ["digest_id", "content_item_id"]
         }
       },
       "uniqueConstraints": {},
@@ -431,12 +412,8 @@
           "name": "digests_user_id_users_id_fk",
           "tableFrom": "digests",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -573,12 +550,8 @@
           "name": "platform_connections_user_id_users_id_fk",
           "tableFrom": "platform_connections",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -684,12 +657,8 @@
           "name": "sync_jobs_user_id_users_id_fk",
           "tableFrom": "sync_jobs",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -697,12 +666,8 @@
           "name": "sync_jobs_connection_id_platform_connections_id_fk",
           "tableFrom": "sync_jobs",
           "tableTo": "platform_connections",
-          "columnsFrom": [
-            "connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -815,9 +780,7 @@
         "users_email_unique": {
           "name": "users_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},

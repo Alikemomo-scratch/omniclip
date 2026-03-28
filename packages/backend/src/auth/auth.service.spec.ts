@@ -76,11 +76,7 @@ describe('AuthService', () => {
         { id: 'user-1', email: 'test@example.com', displayName: 'Test User' },
       ]);
 
-      const result = await authService.register(
-        'test@example.com',
-        'password123',
-        'Test User',
-      );
+      const result = await authService.register('test@example.com', 'password123', 'Test User');
 
       expect(result.user.email).toBe('test@example.com');
       expect(result.user.display_name).toBe('Test User');
@@ -110,10 +106,7 @@ describe('AuthService', () => {
       ]);
       vi.mocked(bcrypt.compare).mockResolvedValueOnce(true as never);
 
-      const result = await authService.login(
-        'test@example.com',
-        'password123',
-      );
+      const result = await authService.login('test@example.com', 'password123');
 
       expect(result.user.email).toBe('test@example.com');
       expect(result.access_token).toBeDefined();
@@ -122,9 +115,9 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException for non-existent user', async () => {
       mockDb._chainable.limit.mockResolvedValueOnce([]);
 
-      await expect(
-        authService.login('noone@example.com', 'password123'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(authService.login('noone@example.com', 'password123')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for wrong password', async () => {
@@ -138,9 +131,9 @@ describe('AuthService', () => {
       ]);
       vi.mocked(bcrypt.compare).mockResolvedValueOnce(false as never);
 
-      await expect(
-        authService.login('test@example.com', 'wrong'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(authService.login('test@example.com', 'wrong')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -152,9 +145,7 @@ describe('AuthService', () => {
         { expiresIn: '7d' },
       );
 
-      mockDb._chainable.limit.mockResolvedValueOnce([
-        { id: 'user-1', email: 'test@example.com' },
-      ]);
+      mockDb._chainable.limit.mockResolvedValueOnce([{ id: 'user-1', email: 'test@example.com' }]);
 
       const result = await authService.refresh(token);
 
@@ -163,9 +154,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for invalid token', async () => {
-      await expect(authService.refresh('bad-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(authService.refresh('bad-token')).rejects.toThrow(UnauthorizedException);
     });
   });
 });

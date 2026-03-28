@@ -5,7 +5,7 @@
 **Status**: Draft  
 **Input**: User description: "Multi-platform content aggregation SaaS with browser extension + cloud sync architecture. Collects followed content from GitHub, YouTube, X/Twitter, Xiaohongshu, WeChat via local browser extension and server-side APIs, then performs AI-powered analysis and summarization."
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - First-Time Setup & Platform Connection (Priority: P1)
 
@@ -119,7 +119,7 @@ The system is designed so that adding support for a new platform (e.g., WeChat O
 - What happens if the cloud API endpoint is compromised and an attacker intercepts data in transit? → All extension-to-cloud communication uses HTTPS with certificate pinning. Collected content is encrypted in transit. No authentication credentials (cookies, passwords) are included in sync payloads.
 - What happens if a user's browser extension is inspected by a platform's anti-bot system and the extension's content script is detected? → The extension only reads API responses passively (no DOM mutation, no fake clicks, no automated scrolling). This passive read-only approach minimizes detection surface.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -154,7 +154,7 @@ The system is designed so that adding support for a new platform (e.g., WeChat O
 - **Digest**: An AI-generated summary covering a time period, containing topic groupings, trend analysis, and per-item summaries. Linked to a User and a set of Content Items.
 - **Connector**: A platform-specific module implementing the standard interface (authenticate, fetch, parse, health-check). Categorized as either "extension-based" (runs in browser) or "server-based" (runs on server).
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -183,6 +183,7 @@ The system is designed so that adding support for a new platform (e.g., WeChat O
 ## Scope Boundaries
 
 ### In Scope (MVP)
+
 - Platform connectors: GitHub (API), YouTube (API), X/Twitter (extension), Xiaohongshu (extension)
 - Browser extension for Chrome/Chromium
 - Unified content feed with search and filtering
@@ -191,6 +192,7 @@ The system is designed so that adding support for a new platform (e.g., WeChat O
 - Connector plugin architecture
 
 ### Out of Scope (Future)
+
 - WeChat Official Accounts connector (requires separate research on WeWe RSS integration or RPA approach)
 - Mobile app (native iOS/Android)
 - Firefox/Safari browser extensions

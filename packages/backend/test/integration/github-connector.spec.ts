@@ -174,17 +174,13 @@ describe('GitHub Connector (Integration)', () => {
       expect(starredItem!.original_url).toContain('releases');
 
       // Check release event item
-      const releaseItem = result.items.find(
-        (i) => i.external_id === 'github-event-evt-1',
-      );
+      const releaseItem = result.items.find((i) => i.external_id === 'github-event-evt-1');
       expect(releaseItem).toBeDefined();
       expect(releaseItem!.content_type).toBe('release');
       expect(releaseItem!.original_url).toContain('releases');
 
       // Check watch event item
-      const watchItem = result.items.find(
-        (i) => i.external_id === 'github-event-evt-2',
-      );
+      const watchItem = result.items.find((i) => i.external_id === 'github-event-evt-2');
       expect(watchItem).toBeDefined();
       expect(watchItem!.title).toContain('Starred');
     });

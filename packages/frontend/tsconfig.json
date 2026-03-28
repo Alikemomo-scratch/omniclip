@@ -11,9 +11,7 @@
     "noEmit": true,
     "incremental": true,
     "composite": false,
-    "plugins": [
-      { "name": "next" }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]
     }

@@ -136,7 +136,13 @@ window.addEventListener('load', () => {
       // Sometimes body scroll works better
       document.body.scrollTop += 2000;
       document.documentElement.scrollTop += 2000;
+
+      // Also try to scroll the main container if it exists
+      const mainContainer = document.querySelector('#app, .main-container, .feed-container');
+      if (mainContainer) {
+        mainContainer.scrollTop += 2000;
+      }
     }, 1000);
-    setTimeout(() => clearInterval(scrollInterval), 8000);
+    setTimeout(() => clearInterval(scrollInterval), 12000);
   }
 });

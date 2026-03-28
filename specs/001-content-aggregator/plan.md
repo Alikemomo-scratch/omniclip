@@ -13,30 +13,31 @@ Build a multi-platform content aggregation SaaS that collects followed content f
 
 **Language/Version**: TypeScript 5.x (Node.js 20 LTS)
 **Primary Dependencies**:
+
 - Backend: NestJS 10.x, BullMQ 5.x, Drizzle ORM (latest stable), LangChain.js
 - Frontend: Next.js 15.x, React 19, shadcn/ui, TanStack Query v5, Tailwind CSS 4
 - Extension: Chrome Extension Manifest V3 APIs, chrome.alarms, chrome.storage
-**Storage**: PostgreSQL 16 + Redis 7 (BullMQ job queue + caching)
-**Testing**: Vitest (unit + integration), Playwright (E2E for frontend), Chrome Extension Testing (jest-chrome)
-**Target Platform**: Linux server (backend), Web browser (frontend), Chrome/Chromium (extension)
-**Project Type**: web-service + browser-extension (multi-project)
-**Performance Goals**: API response <200ms p95, sync job throughput 100 users/min, digest generation <60s per user
-**Constraints**: Extension must not trigger platform anti-bot measures, all sync payloads HTTPS-only, no platform credentials transmitted, service worker 30s idle timeout (MV3)
-**Scale/Scope**: 1,000 concurrent users (MVP), 4 platform connectors, ~15 screens (frontend dashboard)
+  **Storage**: PostgreSQL 16 + Redis 7 (BullMQ job queue + caching)
+  **Testing**: Vitest (unit + integration), Playwright (E2E for frontend), Chrome Extension Testing (jest-chrome)
+  **Target Platform**: Linux server (backend), Web browser (frontend), Chrome/Chromium (extension)
+  **Project Type**: web-service + browser-extension (multi-project)
+  **Performance Goals**: API response <200ms p95, sync job throughput 100 users/min, digest generation <60s per user
+  **Constraints**: Extension must not trigger platform anti-bot measures, all sync payloads HTTPS-only, no platform credentials transmitted, service worker 30s idle timeout (MV3)
+  **Scale/Scope**: 1,000 concurrent users (MVP), 4 platform connectors, ~15 screens (frontend dashboard)
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| Principle | Status | Evidence |
-|-----------|--------|----------|
-| I. Code Quality | PASS | Monorepo with clear module boundaries; NestJS enforces modular architecture; Drizzle ORM provides explicit schema definitions |
-| II. Testing Standards | PASS | Vitest for unit/integration, Playwright for E2E, jest-chrome for extension; each layer tested appropriately |
-| III. UX Consistency | PASS | shadcn/ui component library ensures visual consistency; next-intl for i18n (Chinese + English); actionable error states defined in spec |
-| IV. Performance Requirements | PASS | Specific metrics defined: <200ms API p95, 100 users/min sync, <60s digest. Will verify with load tests |
-| V. Observability | PASS | NestJS built-in logger + structured logging; BullMQ dashboard for job monitoring; extension health-check reporting |
-| VI. Language Standard | PASS | All code/comments in English; user-facing content supports Chinese via i18n |
-| VII. Communication Protocol | PASS | Agent communicates with user in Chinese; all internal reasoning in English |
+| Principle                    | Status | Evidence                                                                                                                                |
+| ---------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Code Quality              | PASS   | Monorepo with clear module boundaries; NestJS enforces modular architecture; Drizzle ORM provides explicit schema definitions           |
+| II. Testing Standards        | PASS   | Vitest for unit/integration, Playwright for E2E, jest-chrome for extension; each layer tested appropriately                             |
+| III. UX Consistency          | PASS   | shadcn/ui component library ensures visual consistency; next-intl for i18n (Chinese + English); actionable error states defined in spec |
+| IV. Performance Requirements | PASS   | Specific metrics defined: <200ms API p95, 100 users/min sync, <60s digest. Will verify with load tests                                  |
+| V. Observability             | PASS   | NestJS built-in logger + structured logging; BullMQ dashboard for job monitoring; extension health-check reporting                      |
+| VI. Language Standard        | PASS   | All code/comments in English; user-facing content supports Chinese via i18n                                                             |
+| VII. Communication Protocol  | PASS   | Agent communicates with user in Chinese; all internal reasoning in English                                                              |
 
 **Result**: All gates PASS. Proceeding to Phase 0.
 
@@ -119,7 +120,7 @@ tsconfig.base.json              # Shared TypeScript config
 
 ## Complexity Tracking
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| 4 sub-projects (backend/frontend/extension/shared) | Three distinct runtime targets (Node.js server, browser SPA, Chrome extension) require separate build pipelines and entry points | A 2-project split would force extension code into frontend or backend, creating coupling and deployment complexity |
-| BullMQ + Redis (additional infrastructure) | Per-user periodic sync scheduling with configurable intervals, retry logic, and dead-letter queues cannot be reliably achieved with simple `setInterval` or cron | Node.js cron libraries lack job persistence, distributed locking, and automatic retry — critical for multi-user reliability |
+| Violation                                          | Why Needed                                                                                                                                                       | Simpler Alternative Rejected Because                                                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 4 sub-projects (backend/frontend/extension/shared) | Three distinct runtime targets (Node.js server, browser SPA, Chrome extension) require separate build pipelines and entry points                                 | A 2-project split would force extension code into frontend or backend, creating coupling and deployment complexity          |
+| BullMQ + Redis (additional infrastructure)         | Per-user periodic sync scheduling with configurable intervals, retry logic, and dead-letter queues cannot be reliably achieved with simple `setInterval` or cron | Node.js cron libraries lack job persistence, distributed locking, and automatic retry — critical for multi-user reliability |

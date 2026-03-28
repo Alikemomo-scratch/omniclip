@@ -129,11 +129,27 @@ Function.prototype.toString = function (this: Function): string {
  */
 window.addEventListener('load', () => {
   if (window.location.hash.includes('omniclip-crawl')) {
+    // Attempt to click the "Following" tab (or "正在关注") to force timeline switch
+    const attemptClickFollowing = setInterval(() => {
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+      const followingTab = tabs.find((tab) => {
+        const text = tab.textContent || '';
+        return text.includes('Following') || text.includes('正在关注');
+      });
+
+      if (followingTab) {
+        (followingTab as HTMLElement).click();
+        clearInterval(attemptClickFollowing);
+      }
+    }, 500);
+
+    setTimeout(() => clearInterval(attemptClickFollowing), 8000);
+
     const scrollInterval = setInterval(() => {
       window.scrollBy(0, 2000);
       document.body.scrollTop += 2000;
       document.documentElement.scrollTop += 2000;
     }, 1000);
-    setTimeout(() => clearInterval(scrollInterval), 8000);
+    setTimeout(() => clearInterval(scrollInterval), 12000);
   }
 });

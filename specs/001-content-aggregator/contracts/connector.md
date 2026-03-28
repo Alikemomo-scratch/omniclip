@@ -11,6 +11,7 @@
 The connector interface enables extensibility — adding a new platform requires only implementing this interface and registering the connector, without modifying core application logic.
 
 There are two connector categories:
+
 - **API Connector** (server-side): Runs on the backend, fetches content via official platform APIs
 - **Extension Connector** (client-side): Runs in the Chrome extension, intercepts platform API responses
 
@@ -49,10 +50,7 @@ interface PlatformConnector {
    * @param since - Only fetch content published after this timestamp
    * @returns Array of normalized content items
    */
-  fetchContent(
-    connection: PlatformConnection,
-    since: Date | null
-  ): Promise<FetchResult>;
+  fetchContent(connection: PlatformConnection, since: Date | null): Promise<FetchResult>;
 
   /**
    * Parse a raw platform-specific response into normalized content items.
@@ -187,24 +185,24 @@ class ConnectorError extends Error {
     public readonly platform: PlatformId,
     public readonly code: ConnectorErrorCode,
     message: string,
-    public readonly retryable: boolean = false
+    public readonly retryable: boolean = false,
   ) {
     super(message);
   }
 }
 
 type ConnectorErrorCode =
-  | 'AUTH_EXPIRED'      // Token/session expired, user action needed
-  | 'AUTH_REVOKED'      // Token permanently revoked
-  | 'RATE_LIMITED'      // API rate limit hit, retry after delay
-  | 'PLATFORM_ERROR'    // Platform returned unexpected error
-  | 'PARSE_ERROR'       // Response format changed, cannot parse
-  | 'NETWORK_ERROR'     // Connection timeout or DNS failure
-  | 'ACCOUNT_SUSPENDED' // User's platform account is suspended
-  ;
+  | 'AUTH_EXPIRED' // Token/session expired, user action needed
+  | 'AUTH_REVOKED' // Token permanently revoked
+  | 'RATE_LIMITED' // API rate limit hit, retry after delay
+  | 'PLATFORM_ERROR' // Platform returned unexpected error
+  | 'PARSE_ERROR' // Response format changed, cannot parse
+  | 'NETWORK_ERROR' // Connection timeout or DNS failure
+  | 'ACCOUNT_SUSPENDED'; // User's platform account is suspended
 ```
 
 The sync module handles these errors uniformly:
+
 - `AUTH_EXPIRED` → mark connection as 'error', notify user (FR-013)
 - `RATE_LIMITED` → re-queue job with delay (exponential backoff)
 - `PARSE_ERROR` → log detailed error for debugging, notify user (FR-016)

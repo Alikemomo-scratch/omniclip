@@ -64,10 +64,7 @@ export interface PlatformConnector {
   /**
    * Fetch new content items from the platform.
    */
-  fetchContent(
-    connection: PlatformConnectionData,
-    since: Date | null,
-  ): Promise<FetchResult>;
+  fetchContent(connection: PlatformConnectionData, since: Date | null): Promise<FetchResult>;
 
   /**
    * Parse a raw platform-specific response into normalized content items.

@@ -34,10 +34,12 @@ docker-compose up -d
 ```
 
 This starts:
+
 - **PostgreSQL 16** on `localhost:5432` (user: `postgres`, password: `postgres`, db: `aggregator_dev`)
 - **Redis 7** on `localhost:6379`
 
 Verify:
+
 ```bash
 docker-compose ps
 # Both containers should show "Up"
@@ -54,6 +56,7 @@ cp packages/frontend/.env.example packages/frontend/.env
 ```
 
 Edit `packages/backend/.env`:
+
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aggregator_dev
 REDIS_URL=redis://localhost:6379
@@ -62,6 +65,7 @@ OPENAI_API_KEY=sk-your-key-here
 ```
 
 Edit `packages/frontend/.env`:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ```
@@ -88,11 +92,13 @@ pnpm dev
 ```
 
 This starts:
+
 - **Backend** at `http://localhost:3001`
 - **Frontend** at `http://localhost:3000`
 - **Shared** types in watch mode
 
 Or start individually:
+
 ```bash
 pnpm --filter backend dev      # Backend only
 pnpm --filter frontend dev     # Frontend only
@@ -108,6 +114,7 @@ pnpm --filter frontend dev     # Frontend only
 4. Select `packages/extension/dist/` directory
 
 For extension development with hot reload:
+
 ```bash
 pnpm --filter extension dev
 ```
@@ -168,16 +175,16 @@ pnpm typecheck   # TypeScript compiler check
 
 ## Project Scripts Reference
 
-| Script | Description |
-|--------|-------------|
-| `pnpm dev` | Start all services in dev mode |
-| `pnpm build` | Build all packages |
-| `pnpm test` | Run all tests |
-| `pnpm test:coverage` | Tests with coverage report |
-| `pnpm lint` | Lint all packages |
-| `pnpm format` | Format all packages |
-| `pnpm typecheck` | Type check all packages |
-| `pnpm --filter backend db:migrate` | Run database migrations |
-| `pnpm --filter backend db:generate` | Generate new migration |
-| `pnpm --filter backend db:seed` | Seed database with test data |
-| `pnpm --filter backend db:studio` | Open Drizzle Studio (DB GUI) |
+| Script                              | Description                    |
+| ----------------------------------- | ------------------------------ |
+| `pnpm dev`                          | Start all services in dev mode |
+| `pnpm build`                        | Build all packages             |
+| `pnpm test`                         | Run all tests                  |
+| `pnpm test:coverage`                | Tests with coverage report     |
+| `pnpm lint`                         | Lint all packages              |
+| `pnpm format`                       | Format all packages            |
+| `pnpm typecheck`                    | Type check all packages        |
+| `pnpm --filter backend db:migrate`  | Run database migrations        |
+| `pnpm --filter backend db:generate` | Generate new migration         |
+| `pnpm --filter backend db:seed`     | Seed database with test data   |
+| `pnpm --filter backend db:studio`   | Open Drizzle Studio (DB GUI)   |

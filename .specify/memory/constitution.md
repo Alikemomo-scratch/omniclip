@@ -31,7 +31,7 @@ Follow-up TODOs: None
   inputs/outputs, error semantics, and extension points.
 - Complexity MUST be controlled: if code becomes hard to
   explain, refactor or split before adding more.
-- All changes MUST be reviewable: explain *why*, alternatives
+- All changes MUST be reviewable: explain _why_, alternatives
   considered, and key risks.
 
 **Rationale**: Readable code reduces onboarding time, prevents

@@ -12,6 +12,7 @@
 The Chrome extension collects content from anti-scraping platforms (X/Twitter, Xiaohongshu) by intercepting API responses in the user's authenticated browser session. Collected items are buffered locally in `chrome.storage.local` and periodically synced to the backend via this protocol.
 
 **Security invariants** (FR-017 ~ FR-022):
+
 - Sync payloads contain ONLY content data + aggregator auth token
 - NO platform cookies, session tokens, or passwords are transmitted
 - All communication over HTTPS
@@ -26,6 +27,7 @@ The Chrome extension collects content from anti-scraping platforms (X/Twitter, X
 Batch upload content items collected by the extension.
 
 **Headers**:
+
 ```
 Authorization: Bearer <aggregator-jwt-token>
 Content-Type: application/json
@@ -34,6 +36,7 @@ X-Platform: xiaohongshu
 ```
 
 **Request**:
+
 ```json
 {
   "platform": "xiaohongshu",
@@ -44,9 +47,7 @@ X-Platform: xiaohongshu
       "content_type": "post",
       "title": "Post title",
       "body": "Post content text...",
-      "media_urls": [
-        "https://sns-webpic-qc.xhscdn.com/xxx.jpg"
-      ],
+      "media_urls": ["https://sns-webpic-qc.xhscdn.com/xxx.jpg"],
       "metadata": {
         "likes": 1000,
         "collects": 200,
@@ -68,6 +69,7 @@ X-Platform: xiaohongshu
 ```
 
 **Response** (200):
+
 ```json
 {
   "accepted": 5,
@@ -78,6 +80,7 @@ X-Platform: xiaohongshu
 ```
 
 **Response** (207 — Partial success):
+
 ```json
 {
   "accepted": 3,
@@ -93,6 +96,7 @@ X-Platform: xiaohongshu
 ```
 
 **Errors**:
+
 - 401: Invalid or expired aggregator token → extension prompts re-login to aggregator
 - 404: Connection not found (user may have disconnected this platform)
 - 429: Rate limited — extension should respect `Retry-After` header
@@ -106,6 +110,7 @@ X-Platform: xiaohongshu
 Extension periodically reports its health status.
 
 **Request**:
+
 ```json
 {
   "connection_id": "uuid",
@@ -118,6 +123,7 @@ Extension periodically reports its health status.
 ```
 
 **Error report** (platform login expired):
+
 ```json
 {
   "connection_id": "uuid",
@@ -130,6 +136,7 @@ Extension periodically reports its health status.
 ```
 
 **Response** (200):
+
 ```json
 {
   "ack": true,
@@ -146,14 +153,19 @@ Extension periodically reports its health status.
 
 ```javascript
 // MAIN world content script posts intercepted data
-window.postMessage({
-  type: 'AGGREGATOR_CONTENT',
-  source: 'aggregator-main',
-  payload: {
-    platform: 'xiaohongshu',
-    items: [/* parsed content items */]
-  }
-}, '*');
+window.postMessage(
+  {
+    type: 'AGGREGATOR_CONTENT',
+    source: 'aggregator-main',
+    payload: {
+      platform: 'xiaohongshu',
+      items: [
+        /* parsed content items */
+      ],
+    },
+  },
+  '*',
+);
 ```
 
 ### Bridge → Service Worker (chrome.runtime.sendMessage)
@@ -163,8 +175,10 @@ window.postMessage({
 chrome.runtime.sendMessage({
   type: 'CONTENT_COLLECTED',
   platform: 'xiaohongshu',
-  items: [/* content items */],
-  timestamp: Date.now()
+  items: [
+    /* content items */
+  ],
+  timestamp: Date.now(),
 });
 ```
 

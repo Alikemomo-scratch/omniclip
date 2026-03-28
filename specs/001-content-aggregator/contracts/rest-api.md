@@ -10,9 +10,11 @@
 ## Authentication
 
 ### POST /auth/register
+
 Create a new user account.
 
 **Request**:
+
 ```json
 {
   "email": "user@example.com",
@@ -22,6 +24,7 @@ Create a new user account.
 ```
 
 **Response** (201):
+
 ```json
 {
   "user": {
@@ -37,9 +40,11 @@ Create a new user account.
 **Errors**: 409 (email exists), 422 (validation)
 
 ### POST /auth/login
+
 Authenticate and receive tokens.
 
 **Request**:
+
 ```json
 {
   "email": "user@example.com",
@@ -48,6 +53,7 @@ Authenticate and receive tokens.
 ```
 
 **Response** (200):
+
 ```json
 {
   "user": { "id": "uuid", "email": "...", "display_name": "..." },
@@ -59,9 +65,11 @@ Authenticate and receive tokens.
 **Errors**: 401 (invalid credentials)
 
 ### POST /auth/refresh
+
 Refresh an expired access token.
 
 **Request**:
+
 ```json
 {
   "refresh_token": "refresh-token"
@@ -69,6 +77,7 @@ Refresh an expired access token.
 ```
 
 **Response** (200):
+
 ```json
 {
   "access_token": "new-jwt-token",
@@ -81,9 +90,11 @@ Refresh an expired access token.
 ## Platform Connections
 
 ### GET /connections
+
 List all platform connections for the current user.
 
 **Response** (200):
+
 ```json
 {
   "connections": [
@@ -102,9 +113,11 @@ List all platform connections for the current user.
 ```
 
 ### POST /connections
+
 Create a new platform connection.
 
 **Request (API-based — GitHub)**:
+
 ```json
 {
   "platform": "github",
@@ -117,6 +130,7 @@ Create a new platform connection.
 ```
 
 **Request (Extension-based — Xiaohongshu)**:
+
 ```json
 {
   "platform": "xiaohongshu",
@@ -126,6 +140,7 @@ Create a new platform connection.
 ```
 
 **Response** (201):
+
 ```json
 {
   "id": "uuid",
@@ -139,9 +154,11 @@ Create a new platform connection.
 **Errors**: 409 (platform already connected), 422 (validation)
 
 ### PATCH /connections/:id
+
 Update connection settings.
 
 **Request**:
+
 ```json
 {
   "sync_interval_minutes": 120,
@@ -152,14 +169,17 @@ Update connection settings.
 **Response** (200): Updated connection object
 
 ### DELETE /connections/:id
+
 Disconnect a platform. Deletes stored credentials, stops future syncs.
 
 **Response** (204): No content
 
 ### POST /connections/:id/test
+
 Test connection health (verify API token / extension status).
 
 **Response** (200):
+
 ```json
 {
   "status": "healthy",
@@ -174,6 +194,7 @@ Test connection health (verify API token / extension status).
 ## Content Feed
 
 ### GET /content
+
 List content items with pagination and filters.
 
 **Query Parameters**:
@@ -188,6 +209,7 @@ List content items with pagination and filters.
 | search | string | - | Full-text search in title/body |
 
 **Response** (200):
+
 ```json
 {
   "items": [
@@ -217,6 +239,7 @@ List content items with pagination and filters.
 ```
 
 ### GET /content/:id
+
 Get a single content item with full details.
 
 **Response** (200): Single content item object
@@ -226,6 +249,7 @@ Get a single content item with full details.
 ## Digests
 
 ### GET /digests
+
 List generated digests.
 
 **Query Parameters**:
@@ -236,6 +260,7 @@ List generated digests.
 | type | string | all | 'daily' or 'weekly' |
 
 **Response** (200):
+
 ```json
 {
   "digests": [
@@ -264,9 +289,11 @@ List generated digests.
 ```
 
 ### POST /digests/generate
+
 Manually trigger digest generation.
 
 **Request**:
+
 ```json
 {
   "digest_type": "daily",
@@ -276,6 +303,7 @@ Manually trigger digest generation.
 ```
 
 **Response** (202):
+
 ```json
 {
   "id": "uuid",
@@ -285,14 +313,17 @@ Manually trigger digest generation.
 ```
 
 ### GET /digests/:id
+
 Get a single digest with full content.
 
 **Response** (200): Full digest object
 
 ### GET /digests/:id/stream
+
 Stream digest generation in real-time (Server-Sent Events).
 
 **Response**: `text/event-stream`
+
 ```
 event: progress
 data: {"stage": "summarizing", "progress": 0.3, "current_item": "uuid-5"}
@@ -309,12 +340,15 @@ data: {"digest_id": "uuid", "status": "completed"}
 ## User Settings
 
 ### GET /users/me
+
 Get current user profile and settings.
 
 ### PATCH /users/me
+
 Update user settings.
 
 **Request**:
+
 ```json
 {
   "display_name": "New Name",
@@ -331,11 +365,13 @@ Update user settings.
 ## Sync Jobs (Admin/Debug)
 
 ### GET /sync/jobs
+
 List recent sync jobs for the current user.
 
 **Query Parameters**: `connection_id`, `status`, `page`, `limit`
 
 **Response** (200):
+
 ```json
 {
   "jobs": [
@@ -363,20 +399,18 @@ All errors follow this format:
   "statusCode": 422,
   "error": "Unprocessable Entity",
   "message": "Validation failed",
-  "details": [
-    { "field": "email", "message": "must be a valid email address" }
-  ]
+  "details": [{ "field": "email", "message": "must be a valid email address" }]
 }
 ```
 
-| Status | Usage |
-|--------|-------|
-| 400 | Bad request (malformed JSON) |
-| 401 | Unauthorized (missing/invalid token) |
-| 403 | Forbidden (RLS violation) |
-| 404 | Resource not found |
-| 409 | Conflict (duplicate) |
-| 422 | Validation error |
-| 429 | Rate limited |
-| 500 | Internal server error |
-| 503 | Service unavailable |
+| Status | Usage                                |
+| ------ | ------------------------------------ |
+| 400    | Bad request (malformed JSON)         |
+| 401    | Unauthorized (missing/invalid token) |
+| 403    | Forbidden (RLS violation)            |
+| 404    | Resource not found                   |
+| 409    | Conflict (duplicate)                 |
+| 422    | Validation error                     |
+| 429    | Rate limited                         |
+| 500    | Internal server error                |
+| 503    | Service unavailable                  |

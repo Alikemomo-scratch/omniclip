@@ -12,13 +12,8 @@ export type DrizzleDB = NodePgDatabase<typeof schema>;
  * @param db - Drizzle database instance
  * @param userId - The authenticated user's UUID
  */
-export async function setRlsContext(
-  db: DrizzleDB,
-  userId: string,
-): Promise<void> {
-  await db.execute(
-    sql`SELECT set_config('app.current_user_id', ${userId}, true)`,
-  );
+export async function setRlsContext(db: DrizzleDB, userId: string): Promise<void> {
+  await db.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
 }
 
 /**
@@ -35,9 +30,7 @@ export async function withRlsContext<T>(
   callback: (tx: DrizzleDB) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`SELECT set_config('app.current_user_id', ${userId}, true)`,
-    );
+    await tx.execute(sql`SELECT set_config('app.current_user_id', ${userId}, true)`);
     return callback(tx as unknown as DrizzleDB);
   });
 }
