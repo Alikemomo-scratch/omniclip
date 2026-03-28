@@ -56,13 +56,11 @@ const patchedFetch: typeof window.fetch = async function (
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
     if (url.includes(FEED_URL_PATTERN)) {
-      // Must be on the "follow" tab to intercept (ignore algorithmic "explore" feed)
-      // Xiaohongshu follow tab URL path usually contains 'follow' or the API request specifies follow
-      const isFollowFeed = window.location.href.includes('follow') || url.includes('follow');
-
-      if (!isFollowFeed) {
-        return response;
-      }
+      // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
+      // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed, which does not match FEED_URL_PATTERN.
+      // Therefore, matching FEED_URL_PATTERN exactly is sufficient.
+      // We removed the window.location.href.includes('follow') check because XHS web
+      // doesn't typically put 'follow' in the URL or API path for this endpoint.
 
       // Clone the response so we don't consume the body
       const cloned = response.clone();
@@ -96,10 +94,9 @@ class PatchedXMLHttpRequest extends originalXHR {
     this.addEventListener('load', function () {
       try {
         if (this.responseURL.includes(FEED_URL_PATTERN)) {
-          // XHS follow feed check
-          const isFollowFeed =
-            window.location.href.includes('follow') || this.responseURL.includes('follow');
-          if (!isFollowFeed) return;
+          // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
+          // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed, which does not match FEED_URL_PATTERN.
+          // Therefore, matching FEED_URL_PATTERN exactly is sufficient.
 
           if (this.responseText) {
             const data = JSON.parse(this.responseText);

@@ -116,10 +116,27 @@ export default function ConnectionsPage() {
     });
   }
 
+  function handleCopyToken() {
+    const token = getToken();
+    if (token) {
+      navigator.clipboard.writeText(token);
+      alert('Token copied to clipboard! Paste it into the OmniClip extension popup.');
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Connections</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Connections</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage your connected platforms. For extension-based platforms,{' '}
+            <button onClick={handleCopyToken} className="text-blue-600 hover:underline">
+              click here to copy your token
+            </button>{' '}
+            for the extension popup.
+          </p>
+        </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"

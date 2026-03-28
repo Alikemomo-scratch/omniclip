@@ -29,9 +29,9 @@ description: 'Task list for Deep Platform Integration (V2)'
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T001 Update connection creation/edit UI to include a "Sync Interval" configuration field in `packages/frontend/src/app/(dashboard)/connections/page.tsx`
-- [ ] T002 Add backend validation for custom `sync_interval_minutes` in `packages/backend/src/connections/dto/index.ts`
-- [ ] T003 Verify `SyncScheduler` dynamic interval assignment logic in `packages/backend/src/sync/sync.scheduler.ts`
+- [x] T001 Update connection creation/edit UI to include a "Sync Interval" configuration field in `packages/frontend/src/app/(dashboard)/connections/page.tsx`
+- [x] T002 Add backend validation for custom `sync_interval_minutes` in `packages/backend/src/connections/dto/index.ts`
+- [x] T003 Verify `SyncScheduler` dynamic interval assignment logic in `packages/backend/src/sync/sync.scheduler.ts`
 
 **Checkpoint**: Foundation ready - custom intervals can be set and saved.
 
@@ -45,12 +45,12 @@ description: 'Task list for Deep Platform Integration (V2)'
 
 ### Tests for User Story 1
 
-- [ ] T004 [P] [US1] Update unit tests to verify GitHub event filtering in `packages/backend/src/connectors/github/github.connector.spec.ts`
+- [x] T004 [P] [US1] Update unit tests to verify GitHub event filtering in `packages/backend/src/connectors/github/github.connector.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T005 [US1] Refactor `parseEvents` in `packages/backend/src/connectors/github/github.connector.ts` to strictly keep `CreateEvent`, `ReleaseEvent`, `PublicEvent`, and `WatchEvent`, while dropping `PushEvent` and `IssuesEvent`.
-- [ ] T006 [US1] Refactor starred repos fetching in `packages/backend/src/connectors/github/github.connector.ts` to fetch `/repos/{owner}/{repo}/releases` instead of logging the star action itself.
+- [x] T005 [US1] Refactor `parseEvents` in `packages/backend/src/connectors/github/github.connector.ts` to strictly keep `CreateEvent`, `ReleaseEvent`, `PublicEvent`, and `WatchEvent`, while dropping `PushEvent` and `IssuesEvent`.
+- [x] T006 [US1] Refactor starred repos fetching in `packages/backend/src/connectors/github/github.connector.ts` to fetch `/repos/{owner}/{repo}/releases` instead of logging the star action itself.
 
 **Checkpoint**: At this point, GitHub connection yields extreme high-signal content.
 
@@ -64,11 +64,11 @@ description: 'Task list for Deep Platform Integration (V2)'
 
 ### Tests for User Story 2
 
-- [ ] T007 [P] [US2] Update YouTube parser unit tests to verify Shorts filtering in `packages/backend/test/unit/youtube-parser.spec.ts`
+- [x] T007 [P] [US2] Update YouTube parser unit tests to verify Shorts filtering in `packages/backend/test/unit/youtube-parser.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T008 [US2] Update `fetchContent` in `packages/backend/src/connectors/youtube/youtube.connector.ts` to strictly verify it only queries subscriptions and explicitly filters out `#shorts`.
+- [x] T008 [US2] Update `fetchContent` in `packages/backend/src/connectors/youtube/youtube.connector.ts` to strictly verify it only queries subscriptions and explicitly filters out `#shorts`.
 
 **Checkpoint**: YouTube integration is now strictly signal-focused.
 
@@ -82,13 +82,13 @@ description: 'Task list for Deep Platform Integration (V2)'
 
 ### Tests for User Story 3
 
-- [ ] T009 [P] [US3] Update extension unit tests for Twitter interceptor in `packages/extension/test/content/twitter-parser.spec.ts`
-- [ ] T010 [P] [US3] Update extension unit tests for Xiaohongshu interceptor in `packages/extension/test/content/xiaohongshu-parser.spec.ts`
+- [x] T009 [P] [US3] Update extension unit tests for Twitter interceptor in `packages/extension/test/content/twitter-parser.spec.ts`
+- [x] T010 [P] [US3] Update extension unit tests for Xiaohongshu interceptor in `packages/extension/test/content/xiaohongshu-parser.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T011 [P] [US3] Modify Twitter content script in `packages/extension/src/content/twitter/interceptor.js` to only activate and intercept XHRs when the user is explicitly on the "Following" timeline tab.
-- [ ] T012 [P] [US3] Modify Xiaohongshu content script in `packages/extension/src/content/xiaohongshu/interceptor.js` to only activate and intercept XHRs when the user is explicitly on the "关注" (Follow) feed.
+- [x] T011 [P] [US3] Modify Twitter content script in `packages/extension/src/content/twitter/interceptor.js` to only activate and intercept XHRs when the user is explicitly on the "Following" timeline tab.
+- [x] T012 [P] [US3] Modify Xiaohongshu content script in `packages/extension/src/content/xiaohongshu/interceptor.js` to only activate and intercept XHRs when the user is explicitly on the "关注" (Follow) feed.
 
 **Checkpoint**: Extension platforms are fully isolated from algorithmic manipulation.
 
@@ -98,8 +98,8 @@ description: 'Task list for Deep Platform Integration (V2)'
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T013 [P] End-to-end verification of dynamic sync intervals overriding default 60-minute behavior.
-- [ ] T014 [P] Update AI digest prompts in `packages/backend/src/digest/prompts/digest.prompts.ts` to better leverage the new high-signal release notes and video descriptions.
+- [x] T013 [P] End-to-end verification of dynamic sync intervals overriding default 60-minute behavior.
+- [x] T014 [P] Update AI digest prompts in `packages/backend/src/digest/prompts/digest.prompts.ts` to better leverage the new high-signal release notes and video descriptions.
 
 ---
 

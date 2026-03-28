@@ -3,7 +3,7 @@
   "name": "OmniClip Content Aggregator",
   "version": "0.1.0",
   "description": "Collect content from Xiaohongshu and X/Twitter to your OmniClip dashboard",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "tabs"],
   "host_permissions": [
     "https://www.xiaohongshu.com/*",
     "https://edith.xiaohongshu.com/*",

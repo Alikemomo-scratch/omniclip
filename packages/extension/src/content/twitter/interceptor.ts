@@ -17,7 +17,7 @@ import { parseTwitterTimeline } from './parser';
 const GRAPHQL_URL_PATTERN = '/graphql/';
 // Only intercept timeline-related queries, specifically the "Following" (latest) timeline.
 // Avoid algorithmic "For You" feeds to maximize signal.
-const TIMELINE_OPERATIONS = ['HomeLatestTimeline', 'HomeTimeline']; // Note: HomeTimeline is sometimes needed if Twitter changes its internal routing, we will rely on parser to filter if needed, but ForYou is distinct.
+const TIMELINE_OPERATIONS = ['HomeLatestTimeline']; // HomeTimeline is the "For You" algorithmic feed, which we must exclude.
 
 // Save original fetch, XHR, and toString for stealth
 const originalFetch = window.fetch;
