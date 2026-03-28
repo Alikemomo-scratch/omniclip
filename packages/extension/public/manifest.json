@@ -18,7 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.xiaohongshu.com/*"],
+      "matches": ["https://www.xiaohongshu.com/*", "https://edith.xiaohongshu.com/*"],
       "js": ["content/xiaohongshu/interceptor.js"],
       "world": "MAIN",
       "run_at": "document_start",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "matches": ["https://www.xiaohongshu.com/*"],
+      "matches": ["https://www.xiaohongshu.com/*", "https://edith.xiaohongshu.com/*"],
       "js": ["bridge/bridge.js"],
       "world": "ISOLATED",
       "run_at": "document_start",
