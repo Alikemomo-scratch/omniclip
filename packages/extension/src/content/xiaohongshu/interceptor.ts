@@ -55,12 +55,10 @@ const patchedFetch: typeof window.fetch = async function (
     // Check if this is a feed request
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
-    if (url.includes(FEED_URL_PATTERN)) {
+    if (url.includes(FEED_URL_PATTERN) && !url.includes('homefeed') && !url.includes('search')) {
       // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
-      // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed, which does not match FEED_URL_PATTERN.
-      // Therefore, matching FEED_URL_PATTERN exactly is sufficient.
-      // We removed the window.location.href.includes('follow') check because XHS web
-      // doesn't typically put 'follow' in the URL or API path for this endpoint.
+      // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed.
+      // Therefore, matching FEED_URL_PATTERN exactly while excluding homefeed is sufficient.
 
       // Clone the response so we don't consume the body
       const cloned = response.clone();
@@ -69,10 +67,11 @@ const patchedFetch: typeof window.fetch = async function (
         .json()
         .then((data: unknown) => {
           const items = parseXiaohongshuFeed(data);
+          console.log(`[OmniClip XHS] Parsed ${items.length} items from feed.`);
           postToBridge(items);
         })
-        .catch(() => {
-          // Silently fail — never break the page
+        .catch((err) => {
+          console.error('[OmniClip XHS] Failed to parse feed:', err);
         });
     }
   } catch {
@@ -93,14 +92,19 @@ class PatchedXMLHttpRequest extends originalXHR {
     super();
     this.addEventListener('load', function () {
       try {
-        if (this.responseURL.includes(FEED_URL_PATTERN)) {
+        if (
+          this.responseURL.includes(FEED_URL_PATTERN) &&
+          !this.responseURL.includes('homefeed') &&
+          !this.responseURL.includes('search')
+        ) {
           // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
-          // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed, which does not match FEED_URL_PATTERN.
-          // Therefore, matching FEED_URL_PATTERN exactly is sufficient.
+          // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed.
+          // Therefore, matching FEED_URL_PATTERN exactly while excluding homefeed is sufficient.
 
           if (this.responseText) {
             const data = JSON.parse(this.responseText);
             const items = parseXiaohongshuFeed(data);
+            console.log(`[OmniClip XHS XHR] Parsed ${items.length} items from feed.`);
             postToBridge(items);
           }
         }
@@ -131,18 +135,37 @@ Function.prototype.toString = function (this: Function): string {
  */
 window.addEventListener('load', () => {
   if (window.location.hash.includes('omniclip-crawl')) {
+    console.log('[OmniClip XHS] Starting automated crawl sequence...');
+
+    // First attempt to click the "关注" (Follow) tab if we are not already on it
+    const attemptClickFollow = setInterval(() => {
+      const tabs = Array.from(document.querySelectorAll('a, div, span, li'));
+      const followTab = tabs.find((tab) => {
+        const text = tab.textContent || '';
+        return (text === '关注' || text.includes('关注')) && !text.includes('已关注');
+      });
+
+      if (followTab) {
+        console.log('[OmniClip XHS] Clicking Follow tab', followTab);
+        (followTab as HTMLElement).click();
+        clearInterval(attemptClickFollow);
+      }
+    }, 1000);
+    setTimeout(() => clearInterval(attemptClickFollow), 8000);
+
     const scrollInterval = setInterval(() => {
       window.scrollBy(0, 2000);
-      // Sometimes body scroll works better
       document.body.scrollTop += 2000;
       document.documentElement.scrollTop += 2000;
 
-      // Also try to scroll the main container if it exists
-      const mainContainer = document.querySelector('#app, .main-container, .feed-container');
+      // XHS specific scroll containers
+      const mainContainer = document.querySelector(
+        '#app, .main-container, .feed-container, #feed-container',
+      );
       if (mainContainer) {
         mainContainer.scrollTop += 2000;
       }
     }, 1000);
-    setTimeout(() => clearInterval(scrollInterval), 12000);
+    setTimeout(() => clearInterval(scrollInterval), 15000);
   }
 });
