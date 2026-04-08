@@ -242,9 +242,10 @@ async function activeCrawl(platform: PlatformId): Promise<void> {
   console.log(`[OmniClip SW] Starting active crawl for ${platform} at ${url}`);
 
   try {
-    // Open tab in the background (active: false) so it doesn't steal user focus.
-    // Modern browsers allow initial network requests in background tabs.
-    const tab = await chrome.tabs.create({ url, active: false });
+    // Open tab in the foreground temporarily (active: true) because SPAs severely
+    // throttle background tabs, breaking infinite scroll and React hydration.
+    // This provides hard proof of functionality to the user via Toasts.
+    const tab = await chrome.tabs.create({ url, active: true });
     if (!tab.id) return;
 
     // Give the page 15 seconds to load and the interceptor to capture XHR/fetch

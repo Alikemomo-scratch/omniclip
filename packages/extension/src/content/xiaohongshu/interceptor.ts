@@ -21,6 +21,34 @@ const originalFetch = window.fetch;
 const originalXHR = window.XMLHttpRequest;
 const originalToString = Function.prototype.toString;
 
+function showToast(message: string, isError = false) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${isError ? '#ff4d4f' : '#00b96b'};
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    z-index: 2147483647;
+    font-family: sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: opacity 0.3s;
+    pointer-events: none;
+  `;
+  if (document.body) {
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 5000);
+  }
+}
+
 /**
  * Post intercepted content items to the bridge script (ISOLATED world)
  * via window.postMessage. The bridge relays to the service worker.
@@ -68,6 +96,11 @@ const patchedFetch: typeof window.fetch = async function (
         .then((data: unknown) => {
           const items = parseXiaohongshuFeed(data);
           console.log(`[OmniClip XHS] Parsed ${items.length} items from feed.`);
+          if (items.length > 0) {
+            showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
+          } else {
+            showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
+          }
           postToBridge(items);
         })
         .catch((err) => {
@@ -105,6 +138,11 @@ class PatchedXMLHttpRequest extends originalXHR {
             const data = JSON.parse(this.responseText);
             const items = parseXiaohongshuFeed(data);
             console.log(`[OmniClip XHS XHR] Parsed ${items.length} items from feed.`);
+            if (items.length > 0) {
+              showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
+            } else {
+              showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
+            }
             postToBridge(items);
           }
         }
