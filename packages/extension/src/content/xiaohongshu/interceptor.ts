@@ -14,12 +14,14 @@
 
 import { parseXiaohongshuFeed } from './parser';
 
-const FEED_URL_PATTERN = '/api/sns/web/v1/feed';
+const FEED_URL_PATTERN = 'api/sns/web';
 
 // Save original fetch, XHR, and toString for stealth
 const originalFetch = window.fetch;
 const originalXHR = window.XMLHttpRequest;
 const originalToString = Function.prototype.toString;
+
+let hasInterceptedApiData = false;
 
 function showToast(message: string, isError = false) {
   const toast = document.createElement('div');
@@ -83,10 +85,15 @@ const patchedFetch: typeof window.fetch = async function (
     // Check if this is a feed request
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
-    if (url.includes(FEED_URL_PATTERN) && !url.includes('homefeed') && !url.includes('search')) {
-      // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
-      // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed.
-      // Therefore, matching FEED_URL_PATTERN exactly while excluding homefeed is sufficient.
+    if (
+      url.includes(FEED_URL_PATTERN) &&
+      url.includes('feed') &&
+      !url.includes('homefeed') &&
+      !url.includes('search')
+    ) {
+      // In Xiaohongshu Web, /api/sns/web/v*/feed is uniquely the Follow feed.
+      // The Discover (algorithmic) feed uses /homefeed.
+      // Therefore, matching 'api/sns/web' and 'feed' exactly while excluding homefeed is sufficient.
 
       // Clone the response so we don't consume the body
       const cloned = response.clone();
@@ -97,6 +104,7 @@ const patchedFetch: typeof window.fetch = async function (
           const items = parseXiaohongshuFeed(data);
           console.log(`[OmniClip XHS] Parsed ${items.length} items from feed.`);
           if (items.length > 0) {
+            hasInterceptedApiData = true;
             showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
           } else {
             showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
@@ -127,18 +135,25 @@ class PatchedXMLHttpRequest extends originalXHR {
       try {
         if (
           this.responseURL.includes(FEED_URL_PATTERN) &&
+          this.responseURL.includes('feed') &&
           !this.responseURL.includes('homefeed') &&
           !this.responseURL.includes('search')
         ) {
-          // In Xiaohongshu Web, /api/sns/web/v1/feed is uniquely the Follow feed.
-          // The Discover (algorithmic) feed uses /api/sns/web/v1/homefeed.
-          // Therefore, matching FEED_URL_PATTERN exactly while excluding homefeed is sufficient.
+          // In Xiaohongshu Web, /api/sns/web/v*/feed is uniquely the Follow feed.
+          // The Discover (algorithmic) feed uses homefeed.
 
-          if (this.responseText) {
-            const data = JSON.parse(this.responseText);
+          let data: unknown = null;
+          if (this.responseType === 'json') {
+            data = this.response;
+          } else if (this.responseText) {
+            data = JSON.parse(this.responseText);
+          }
+
+          if (data) {
             const items = parseXiaohongshuFeed(data);
             console.log(`[OmniClip XHS XHR] Parsed ${items.length} items from feed.`);
             if (items.length > 0) {
+              hasInterceptedApiData = true;
               showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
             } else {
               showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
@@ -169,18 +184,122 @@ Function.prototype.toString = function (this: Function): string {
 };
 
 /**
+ * Fallback DOM Scraper
+ * If API interception fails or returns empty, we scrape the visible DOM.
+ */
+function scrapeDomForItems(): void {
+  if (hasInterceptedApiData) return;
+
+  try {
+    // Find note containers. In modern XHS they are often sections or divs with these classes
+    const noteElements = Array.from(
+      document.querySelectorAll(
+        'section.note-item, .note-item, a.cover, .explore-feed-container > section',
+      ),
+    );
+    if (!noteElements || noteElements.length === 0) return;
+
+    const items: any[] = [];
+    const uniqueUrls = new Set<string>();
+
+    noteElements.forEach((el) => {
+      const link = el.querySelector('a.title') as HTMLAnchorElement;
+      const authorLink = el.querySelector('a.author') as HTMLAnchorElement;
+      const title = link?.textContent?.trim() || el.textContent?.trim().slice(0, 50) || '';
+
+      let url = link?.href || '';
+      if (!url) {
+        const anyLink = el.querySelector('a[href*="/explore/"]');
+        url =
+          (anyLink as HTMLAnchorElement)?.href ||
+          (el.tagName === 'A' ? (el as HTMLAnchorElement).href : '');
+      }
+
+      if (!url || !url.includes('/explore/')) return;
+      if (uniqueUrls.has(url)) return;
+      uniqueUrls.add(url);
+
+      const idMatch = url.match(/\/explore\/([a-zA-Z0-9]+)/);
+      const id = idMatch ? idMatch[1] : `dom-${Date.now()}-${Math.random()}`;
+
+      items.push({
+        external_id: id,
+        content_type: 'post',
+        title: title || 'Scraped Note',
+        body: null,
+        media_urls: [],
+        metadata: { tags: [], scraped: true },
+        author_name: authorLink?.textContent?.trim() || 'Unknown User',
+        author_url: authorLink?.href || null,
+        original_url: url,
+        published_at: new Date().toISOString(),
+      });
+    });
+
+    if (items.length > 0) {
+      console.log(`[OmniClip XHS] DOM Scraper found ${items.length} items as fallback.`);
+      showToast(`OmniClip: Scraped ${items.length} XHS items via DOM fallback!`);
+      postToBridge(items);
+      hasInterceptedApiData = true;
+    }
+  } catch (err) {
+    console.error('[OmniClip XHS] DOM Scraper failed:', err);
+  }
+}
+
+/**
  * If opened by active crawler, scroll to trigger fetch
  */
 window.addEventListener('load', () => {
+  // ATTEMPT TO PARSE EMBEDDED INITIAL STATE ON LOAD
+  // XHS often embeds the first page of the feed directly in the HTML to save a network request.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const state = (window as any).__INITIAL_STATE__;
+    if (state && state.feed && state.feed.notes) {
+      console.log('[OmniClip XHS] Found __INITIAL_STATE__, parsing embedded feed...');
+      // The embedded structure is slightly different, it's usually just an array of notes
+      // Let's reconstruct it to look like the API response
+      const fakeResponse = {
+        code: 0,
+        success: true,
+        data: {
+          items: state.feed.notes.map((note: any) => ({
+            id: note.id || note.noteId,
+            model_type: 'note',
+            note_card: note,
+          })),
+        },
+      };
+      const items = parseXiaohongshuFeed(fakeResponse);
+      console.log(`[OmniClip XHS] Parsed ${items.length} items from initial state.`);
+      if (items.length > 0) {
+        hasInterceptedApiData = true;
+        showToast(`OmniClip: Synced ${items.length} XHS items (Initial State)!`);
+        postToBridge(items);
+      }
+    }
+  } catch (err) {
+    console.error('[OmniClip XHS] Failed to parse __INITIAL_STATE__:', err);
+  }
+
   if (window.location.hash.includes('omniclip-crawl')) {
     console.log('[OmniClip XHS] Starting automated crawl sequence...');
 
     // First attempt to click the "关注" (Follow) tab if we are not already on it
     const attemptClickFollow = setInterval(() => {
-      const tabs = Array.from(document.querySelectorAll('a, div, span, li'));
-      const followTab = tabs.find((tab) => {
-        const text = tab.textContent || '';
-        return (text === '关注' || text.includes('关注')) && !text.includes('已关注');
+      // Find all elements that might be the tab
+      const elements = Array.from(document.querySelectorAll('*'));
+
+      // We want an element that directly contains the text "关注" (no deep children)
+      // Usually it's a span or div within the top navigation
+      const followTab = elements.find((el) => {
+        // Must be a small element (likely a tab), not a huge container
+        if (el.children.length > 2) return false;
+
+        const text = el.textContent?.trim() || '';
+        // Match exact or very close to avoid clicking random stuff
+        return (text === '关注' || text === '关注频道') && !text.includes('已关注');
       });
 
       if (followTab) {
@@ -195,14 +314,21 @@ window.addEventListener('load', () => {
       window.scrollBy(0, 2000);
       document.body.scrollTop += 2000;
       document.documentElement.scrollTop += 2000;
+      window.dispatchEvent(new Event('scroll'));
 
       // XHS specific scroll containers
-      const mainContainer = document.querySelector(
-        '#app, .main-container, .feed-container, #feed-container',
+      const containers = document.querySelectorAll(
+        '#app, .main-container, .feed-container, #feed-container, .global-container, .layout-content, .index-container',
       );
-      if (mainContainer) {
-        mainContainer.scrollTop += 2000;
-      }
+      containers.forEach((container) => {
+        if (container) {
+          container.scrollTop += 2000;
+          container.dispatchEvent(new Event('scroll'));
+        }
+      });
+
+      // Fire DOM scraper as a last resort if API interception is failing
+      scrapeDomForItems();
     }, 1000);
     setTimeout(() => clearInterval(scrollInterval), 15000);
   }

@@ -63,6 +63,12 @@ export function parseXiaohongshuFeed(raw: unknown): ContentItemInput[] {
 
   // Validate response structure
   if (!response || response.code !== 0 || !response.data || !Array.isArray(response.data.items)) {
+    console.warn('[OmniClip XHS Parser] Invalid response structure:', {
+      hasResponse: !!response,
+      code: response?.code,
+      hasData: !!response?.data,
+      hasItems: Array.isArray(response?.data?.items),
+    });
     return [];
   }
 
@@ -71,6 +77,9 @@ export function parseXiaohongshuFeed(raw: unknown): ContentItemInput[] {
   for (const item of response.data.items) {
     // Skip non-note items (ads, etc.)
     if (item.model_type !== 'note' || !item.note_card) {
+      console.warn(
+        `[OmniClip XHS Parser] Skipping item, model_type=${item.model_type}, hasNoteCard=${!!item.note_card}`,
+      );
       continue;
     }
 
