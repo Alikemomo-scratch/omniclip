@@ -188,6 +188,7 @@ Function.prototype.toString = function (this: Function): string {
  * If API interception fails or returns empty, we scrape the visible DOM.
  */
 function scrapeDomForItems(): void {
+  // Never run scraper if we already have API data
   if (hasInterceptedApiData) return;
 
   try {
@@ -197,6 +198,8 @@ function scrapeDomForItems(): void {
         'section.note-item, .note-item, a.cover, .explore-feed-container > section',
       ),
     );
+
+    // Only scrape if we found a reasonable number of items
     if (!noteElements || noteElements.length === 0) return;
 
     const items: any[] = [];
@@ -215,6 +218,7 @@ function scrapeDomForItems(): void {
           (el.tagName === 'A' ? (el as HTMLAnchorElement).href : '');
       }
 
+      // Check if it's a valid explore link (to prevent grabbing random headers/footers)
       if (!url || !url.includes('/explore/')) return;
       if (uniqueUrls.has(url)) return;
       uniqueUrls.add(url);
@@ -236,11 +240,14 @@ function scrapeDomForItems(): void {
       });
     });
 
+    // Make sure we grabbed actual valid items
     if (items.length > 0) {
       console.log(`[OmniClip XHS] DOM Scraper found ${items.length} items as fallback.`);
       showToast(`OmniClip: Scraped ${items.length} XHS items via DOM fallback!`);
       postToBridge(items);
-      hasInterceptedApiData = true;
+      // We explicitly DO NOT set hasInterceptedApiData here.
+      // DOM scraping is a continual fallback that runs every 3s.
+      // If we set it to true, it would only scrape the first screen and never scrape more as you scroll.
     }
   } catch (err) {
     console.error('[OmniClip XHS] DOM Scraper failed:', err);
