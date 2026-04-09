@@ -293,6 +293,13 @@ window.addEventListener('load', () => {
   if (window.location.hash.includes('omniclip-crawl')) {
     console.log('[OmniClip XHS] Starting automated crawl sequence...');
 
+    // Start an independent DOM scraper interval that runs regardless of API status
+    // It checks every 3 seconds, but only fires if API didn't catch anything
+    const domScraperInterval = setInterval(() => {
+      scrapeDomForItems();
+    }, 3000);
+    setTimeout(() => clearInterval(domScraperInterval), 18000);
+
     // First attempt to click the "关注" (Follow) tab if we are not already on it
     const attemptClickFollow = setInterval(() => {
       // Find all elements that might be the tab
@@ -333,9 +340,6 @@ window.addEventListener('load', () => {
           container.dispatchEvent(new Event('scroll'));
         }
       });
-
-      // Fire DOM scraper as a last resort if API interception is failing
-      scrapeDomForItems();
     }, 1000);
     setTimeout(() => clearInterval(scrollInterval), 15000);
   }
