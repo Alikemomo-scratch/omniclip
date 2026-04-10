@@ -1,31 +1,44 @@
 /**
- * Xiaohongshu content script — runs in MAIN world at document_start.
- *
- * Intercepts fetch responses from /api/sns/web/v1/feed to capture
- * feed content without DOM manipulation or additional requests.
- *
- * Security constraints (FR-022):
- * - MUST NOT mutate DOM
- * - MUST NOT simulate clicks
- * - MUST NOT make additional network requests
- * - MUST NOT access or transmit platform credentials
- * - Read-only passive interception only
+ * Enhanced Xiaohongshu content script with comprehensive debugging
  */
 
 import { parseXiaohongshuFeed } from './parser';
 
-const FEED_URL_PATTERN = 'api/sns/web';
+// Debug mode - set to true to see detailed logs
+const DEBUG = true;
 
-// Save original fetch, XHR, and toString for stealth
+const FEED_URL_PATTERNS = [
+  'api/sns/web',
+  'api/sns/v5/feed',
+  'api/sns/v6/feed',
+  'v5/feed',
+  'v6/feed',
+];
+
 const originalFetch = window.fetch;
 const originalXHR = window.XMLHttpRequest;
 const originalToString = Function.prototype.toString;
 
 let hasInterceptedApiData = false;
+let interceptedCount = 0;
+
+function log(...args: any[]) {
+  if (DEBUG) {
+    console.log('[OmniClip XHS]', ...args);
+  }
+}
 
 function showToast(message: string, isError = false) {
+  // Guard: ensure document.body exists
+  if (!document.body) {
+    console.log('[OmniClip XHS Toast]', message);
+    return;
+  }
+
+  // Create toast element - no removal, just fade out with CSS
   const toast = document.createElement('div');
   toast.textContent = message;
+  // Use CSS animation only, no setTimeout removal
   toast.style.cssText = `
     position: fixed;
     bottom: 20px;
@@ -39,24 +52,25 @@ function showToast(message: string, isError = false) {
     font-size: 16px;
     font-weight: bold;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transition: opacity 0.3s;
-    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.5s ease-in 5s;
   `;
-  if (document.body) {
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.remove(), 300);
-    }, 5000);
-  }
+
+  document.body.appendChild(toast);
+
+  // Use a simple delayed opacity change - no removal
+  const fadeOut = function () {
+    toast.style.opacity = '0';
+  };
+
+  // Call via setTimeout with function reference
+  window.setTimeout(fadeOut, 5000);
 }
 
-/**
- * Post intercepted content items to the bridge script (ISOLATED world)
- * via window.postMessage. The bridge relays to the service worker.
- */
 function postToBridge(items: unknown[]): void {
   if (items.length === 0) return;
+
+  log('Posting to bridge:', items.length, 'items');
 
   window.postMessage(
     {
@@ -71,10 +85,21 @@ function postToBridge(items: unknown[]): void {
   );
 }
 
-/**
- * Patched fetch that intercepts XHS feed API responses.
- * Clones the response so the original page functionality is unaffected.
- */
+function isFeedRequest(url: string): boolean {
+  // More permissive matching
+  const isMatch =
+    FEED_URL_PATTERNS.some((pattern) => url.includes(pattern)) &&
+    url.includes('feed') &&
+    !url.includes('homefeed') &&
+    !url.includes('search');
+
+  if (DEBUG && isMatch) {
+    log('Matched feed URL:', url);
+  }
+
+  return isMatch;
+}
+
 const patchedFetch: typeof window.fetch = async function (
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -82,65 +107,52 @@ const patchedFetch: typeof window.fetch = async function (
   const response = await originalFetch.call(window, input, init);
 
   try {
-    // Check if this is a feed request
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 
-    if (
-      url.includes(FEED_URL_PATTERN) &&
-      url.includes('feed') &&
-      !url.includes('homefeed') &&
-      !url.includes('search')
-    ) {
-      // In Xiaohongshu Web, /api/sns/web/v*/feed is uniquely the Follow feed.
-      // The Discover (algorithmic) feed uses /homefeed.
-      // Therefore, matching 'api/sns/web' and 'feed' exactly while excluding homefeed is sufficient.
+    if (isFeedRequest(url)) {
+      log('Intercepting fetch:', url);
 
-      // Clone the response so we don't consume the body
       const cloned = response.clone();
-      // Process asynchronously to not block the page
       cloned
         .json()
         .then((data: unknown) => {
+          log('Response data structure:', Object.keys(data || {}));
+
           const items = parseXiaohongshuFeed(data);
-          console.log(`[OmniClip XHS] Parsed ${items.length} items from feed.`);
+          log(`Parsed ${items.length} items from feed.`);
+
           if (items.length > 0) {
             hasInterceptedApiData = true;
-            showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
+            interceptedCount += items.length;
+            showToast(
+              `OmniClip: Synced ${items.length} Xiaohongshu items! (Total: ${interceptedCount})`,
+            );
+            postToBridge(items);
           } else {
+            log('No items parsed from response:', data);
             showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
           }
-          postToBridge(items);
         })
         .catch((err) => {
           console.error('[OmniClip XHS] Failed to parse feed:', err);
         });
     }
-  } catch {
-    // Silently fail — interception errors must never affect the page
+  } catch (err) {
+    log('Fetch interception error:', err);
   }
 
   return response;
 };
 
-// Apply the fetch patch
 window.fetch = patchedFetch;
 
-/**
- * Patched XMLHttpRequest that intercepts XHS feed API responses.
- */
 class PatchedXMLHttpRequest extends originalXHR {
   constructor() {
     super();
     this.addEventListener('load', function () {
       try {
-        if (
-          this.responseURL.includes(FEED_URL_PATTERN) &&
-          this.responseURL.includes('feed') &&
-          !this.responseURL.includes('homefeed') &&
-          !this.responseURL.includes('search')
-        ) {
-          // In Xiaohongshu Web, /api/sns/web/v*/feed is uniquely the Follow feed.
-          // The Discover (algorithmic) feed uses homefeed.
+        if (isFeedRequest(this.responseURL)) {
+          log('Intercepting XHR:', this.responseURL);
 
           let data: unknown = null;
           if (this.responseType === 'json') {
@@ -150,29 +162,29 @@ class PatchedXMLHttpRequest extends originalXHR {
           }
 
           if (data) {
+            log('XHR response data structure:', Object.keys(data || {}));
+
             const items = parseXiaohongshuFeed(data);
-            console.log(`[OmniClip XHS XHR] Parsed ${items.length} items from feed.`);
+            log(`XHR parsed ${items.length} items from feed.`);
+
             if (items.length > 0) {
               hasInterceptedApiData = true;
-              showToast(`OmniClip: Synced ${items.length} Xiaohongshu items!`);
-            } else {
-              showToast('OmniClip: Fetched XHS feed, but found 0 valid items.', true);
+              interceptedCount += items.length;
+              showToast(
+                `OmniClip: Synced ${items.length} Xiaohongshu items! (Total: ${interceptedCount})`,
+              );
+              postToBridge(items);
             }
-            postToBridge(items);
           }
         }
-      } catch {
-        // Silently fail
+      } catch (err) {
+        log('XHR interception error:', err);
       }
     });
   }
 }
 window.XMLHttpRequest = PatchedXMLHttpRequest;
 
-/**
- * Stealth: patch Function.prototype.toString so our patched fetch
- * returns the same string as the original, avoiding detection.
- */
 Function.prototype.toString = function (this: Function): string {
   if (this === patchedFetch) {
     return originalToString.call(originalFetch);
@@ -183,164 +195,173 @@ Function.prototype.toString = function (this: Function): string {
   return originalToString.call(this);
 };
 
-/**
- * Fallback DOM Scraper
- * If API interception fails or returns empty, we scrape the visible DOM.
- */
 function scrapeDomForItems(): void {
-  // Never run scraper if we already have API data
   if (hasInterceptedApiData) return;
 
   try {
-    // Find note containers. In modern XHS they are often sections or divs with these classes
-    const noteElements = Array.from(
-      document.querySelectorAll(
-        'section.note-item, .note-item, a.cover, .explore-feed-container > section',
-      ),
-    );
+    // Expanded selectors for different XHS versions
+    const selectors = [
+      'section.note-item',
+      '.note-item',
+      'a.cover',
+      '.explore-feed-container > section',
+      '[data-v-] a[href*="/explore/"]',
+      '.feeds-page .note-item',
+      '.main-container .note-item',
+      '[class*="note"] a[href*="/explore/"]',
+    ];
 
-    // Only scrape if we found a reasonable number of items
+    const noteElements = Array.from(document.querySelectorAll(selectors.join(', ')));
+
+    log('DOM scraper found', noteElements.length, 'elements');
+
     if (!noteElements || noteElements.length === 0) return;
 
     const items: any[] = [];
     const uniqueUrls = new Set<string>();
 
     noteElements.forEach((el) => {
-      const link = el.querySelector('a.title') as HTMLAnchorElement;
-      const authorLink = el.querySelector('a.author') as HTMLAnchorElement;
-      const title = link?.textContent?.trim() || el.textContent?.trim().slice(0, 50) || '';
+      const links = el.querySelectorAll('a[href*="/explore/"]');
+      const authorLinks = el.querySelectorAll('a[href*="/user/profile/"]');
 
-      let url = link?.href || '';
-      if (!url) {
-        const anyLink = el.querySelector('a[href*="/explore/"]');
-        url =
-          (anyLink as HTMLAnchorElement)?.href ||
-          (el.tagName === 'A' ? (el as HTMLAnchorElement).href : '');
-      }
+      links.forEach((link) => {
+        const anchor = link as HTMLAnchorElement;
+        const url = anchor.href;
 
-      // Check if it's a valid explore link (to prevent grabbing random headers/footers)
-      if (!url || !url.includes('/explore/')) return;
-      if (uniqueUrls.has(url)) return;
-      uniqueUrls.add(url);
+        if (!url || !url.includes('/explore/')) return;
+        if (uniqueUrls.has(url)) return;
+        uniqueUrls.add(url);
 
-      const idMatch = url.match(/\/explore\/([a-zA-Z0-9]+)/);
-      const id = idMatch ? idMatch[1] : `dom-${Date.now()}-${Math.random()}`;
+        const title =
+          anchor.textContent?.trim() ||
+          el.querySelector('span.title, .title, h3, h4')?.textContent?.trim() ||
+          'Untitled';
 
-      items.push({
-        external_id: id,
-        content_type: 'post',
-        title: title || 'Scraped Note',
-        body: null,
-        media_urls: [],
-        metadata: { tags: [], scraped: true },
-        author_name: authorLink?.textContent?.trim() || 'Unknown User',
-        author_url: authorLink?.href || null,
-        original_url: url,
-        published_at: new Date().toISOString(),
+        const idMatch = url.match(/\/explore\/([a-zA-Z0-9]+)/);
+        const id = idMatch ? idMatch[1] : `dom-${Date.now()}-${Math.random()}`;
+
+        const authorLink = authorLinks[0] as HTMLAnchorElement;
+        const authorName =
+          authorLink?.textContent?.trim() ||
+          el.querySelector('[class*="author"], [class*="nickname"]')?.textContent?.trim() ||
+          'Unknown User';
+
+        items.push({
+          external_id: id,
+          content_type: 'post',
+          title: title.slice(0, 100),
+          body: null,
+          media_urls: [],
+          metadata: {
+            tags: [],
+            scraped: true,
+            scrapeTime: new Date().toISOString(),
+          },
+          author_name: authorName,
+          author_url: authorLink?.href || null,
+          original_url: url,
+          published_at: new Date().toISOString(),
+        });
       });
     });
 
-    // Make sure we grabbed actual valid items
     if (items.length > 0) {
-      console.log(`[OmniClip XHS] DOM Scraper found ${items.length} items as fallback.`);
-      showToast(`OmniClip: Scraped ${items.length} XHS items via DOM fallback!`);
+      log(`DOM Scraper found ${items.length} items as fallback.`);
+      showToast(`OmniClip: Scraped ${items.length} XHS items via DOM!`);
       postToBridge(items);
-      // We explicitly DO NOT set hasInterceptedApiData here.
-      // DOM scraping is a continual fallback that runs every 3s.
-      // If we set it to true, it would only scrape the first screen and never scrape more as you scroll.
     }
   } catch (err) {
     console.error('[OmniClip XHS] DOM Scraper failed:', err);
   }
 }
 
-/**
- * If opened by active crawler, scroll to trigger fetch
- */
+// Initial state parsing with better error handling
 window.addEventListener('load', () => {
-  // ATTEMPT TO PARSE EMBEDDED INITIAL STATE ON LOAD
-  // XHS often embeds the first page of the feed directly in the HTML to save a network request.
+  log('Content script loaded, checking for __INITIAL_STATE__');
+
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const state = (window as any).__INITIAL_STATE__;
-    if (state && state.feed && state.feed.notes) {
-      console.log('[OmniClip XHS] Found __INITIAL_STATE__, parsing embedded feed...');
-      // The embedded structure is slightly different, it's usually just an array of notes
-      // Let's reconstruct it to look like the API response
-      const fakeResponse = {
-        code: 0,
-        success: true,
-        data: {
-          items: state.feed.notes.map((note: any) => ({
-            id: note.id || note.noteId,
-            model_type: 'note',
-            note_card: note,
-          })),
-        },
-      };
-      const items = parseXiaohongshuFeed(fakeResponse);
-      console.log(`[OmniClip XHS] Parsed ${items.length} items from initial state.`);
-      if (items.length > 0) {
-        hasInterceptedApiData = true;
-        showToast(`OmniClip: Synced ${items.length} XHS items (Initial State)!`);
-        postToBridge(items);
+    log('__INITIAL_STATE__ found:', !!state);
+
+    if (state) {
+      log('State keys:', Object.keys(state));
+
+      if (state.feed && state.feed.notes) {
+        log('Found notes in state.feed.notes:', state.feed.notes.length);
+
+        const fakeResponse = {
+          code: 0,
+          success: true,
+          data: {
+            items: state.feed.notes.map((note: any) => ({
+              id: note.id || note.noteId,
+              model_type: 'note',
+              note_card: note,
+            })),
+          },
+        };
+
+        const items = parseXiaohongshuFeed(fakeResponse);
+        log(`Parsed ${items.length} items from initial state.`);
+
+        if (items.length > 0) {
+          hasInterceptedApiData = true;
+          interceptedCount += items.length;
+          showToast(`OmniClip: Synced ${items.length} XHS items (Initial State)!`);
+          postToBridge(items);
+        }
+      } else {
+        log('No notes found in initial state');
+        if (state.feed) {
+          log('Available feed keys:', Object.keys(state.feed));
+        }
       }
     }
   } catch (err) {
     console.error('[OmniClip XHS] Failed to parse __INITIAL_STATE__:', err);
   }
 
+  // Always start DOM scraper as backup
+  setInterval(() => {
+    scrapeDomForItems();
+  }, 5000);
+
+  // Crawl mode
   if (window.location.hash.includes('omniclip-crawl')) {
-    console.log('[OmniClip XHS] Starting automated crawl sequence...');
+    log('Starting crawl mode');
 
-    // Start an independent DOM scraper interval that runs regardless of API status
-    // It checks every 3 seconds, but only fires if API didn't catch anything
-    const domScraperInterval = setInterval(() => {
-      scrapeDomForItems();
-    }, 3000);
-    setTimeout(() => clearInterval(domScraperInterval), 18000);
-
-    // First attempt to click the "关注" (Follow) tab if we are not already on it
     const attemptClickFollow = setInterval(() => {
-      // Find all elements that might be the tab
       const elements = Array.from(document.querySelectorAll('*'));
-
-      // We want an element that directly contains the text "关注" (no deep children)
-      // Usually it's a span or div within the top navigation
       const followTab = elements.find((el) => {
-        // Must be a small element (likely a tab), not a huge container
         if (el.children.length > 2) return false;
-
         const text = el.textContent?.trim() || '';
-        // Match exact or very close to avoid clicking random stuff
         return (text === '关注' || text === '关注频道') && !text.includes('已关注');
       });
 
       if (followTab) {
-        console.log('[OmniClip XHS] Clicking Follow tab', followTab);
+        log('Clicking Follow tab:', followTab);
         (followTab as HTMLElement).click();
         clearInterval(attemptClickFollow);
       }
     }, 1000);
+
     setTimeout(() => clearInterval(attemptClickFollow), 8000);
 
     const scrollInterval = setInterval(() => {
       window.scrollBy(0, 2000);
       document.body.scrollTop += 2000;
       document.documentElement.scrollTop += 2000;
-      window.dispatchEvent(new Event('scroll'));
-
-      // XHS specific scroll containers
-      const containers = document.querySelectorAll(
-        '#app, .main-container, .feed-container, #feed-container, .global-container, .layout-content, .index-container',
-      );
-      containers.forEach((container) => {
-        if (container) {
-          container.scrollTop += 2000;
-          container.dispatchEvent(new Event('scroll'));
-        }
-      });
     }, 1000);
+
     setTimeout(() => clearInterval(scrollInterval), 15000);
   }
 });
+
+// Expose debug info to window
+(window as any).__OMNIXHS_DEBUG__ = {
+  hasInterceptedApiData: () => hasInterceptedApiData,
+  interceptedCount: () => interceptedCount,
+  scrapeNow: scrapeDomForItems,
+};
+
+log('XHS Interceptor initialized');
