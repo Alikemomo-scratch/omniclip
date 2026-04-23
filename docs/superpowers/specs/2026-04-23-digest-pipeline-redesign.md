@@ -38,6 +38,8 @@ Replace the existing map-reduce pipeline with a two-phase **screen → deep-dive
 
 **Validation**: System validates all returned `item_id` values exist in the input set. Duplicates and unknown IDs are silently dropped.
 
+**Deduplication rule**: A single `item_id` must appear in exactly one section. Headlines take precedence — if an item appears in both `headlines` and `categories`, it is kept in `headlines` and removed from `categories`. Within `categories`, if an item appears in multiple topics, only the first occurrence is kept.
+
 ### Phase 2: Headline Deep Dive
 
 **Input**: Only the items flagged as headlines — with **full original content** (body up to 3000 chars).
@@ -108,6 +110,8 @@ in newspaper headline style:
 
 The system appends the JSON schema requirement and content data automatically — users only write the instruction portion.
 
+**Language injection**: The system always appends a language instruction (e.g., "Respond in Chinese" / "Respond in English") after the user's prompt text and before the content data, based on the user's `preferred_language` setting. Users do not need to specify language in their prompt template.
+
 ### Output JSON Structure
 
 ```typescript
@@ -135,7 +139,14 @@ interface DigestOutput {
 }
 ```
 
-This replaces the existing `topic_groups` JSONB field. The column is reused (same `topic_groups` jsonb column) but stores the new shape. Frontend must handle both old and new shapes for backward compatibility with existing digests.
+This replaces the existing `topic_groups` JSONB field. The column is reused (same `topic_groups` jsonb column) but stores the new shape. The existing `trend_analysis` text column is **kept and continues to be the authoritative source** for trend analysis — it is written from `DigestOutput.trend_analysis` on save, same as today.
+
+**Storage contract**:
+- `topic_groups` JSONB column: Stores the full `DigestOutput` object (headlines + categories + trend_analysis).
+- `trend_analysis` text column: Also stores the trend_analysis string (duplicated for backward-compatible list queries that only need this field).
+- On read: Frontend uses `topic_groups` for full rendering. List views may use `trend_analysis` directly.
+
+Frontend must handle both old and new shapes for backward compatibility with existing digests.
 
 ### Pipeline Execution
 
@@ -157,7 +168,7 @@ generateDigest(userId, digestType, periodStart, periodEnd, language)
      → ResponseValidator: validate JSON, match item_ids against Phase 1
      → Merge: topic from Phase 1, title+analysis from Phase 2, platform+url from source
   10. Assemble final DigestOutput, save to digest record
-  11. Link all processed content items via digest_items join table
+  11. Link all content items fetched in step 5 via digest_items join table (includes both headline and category items — represents the full input set for this digest)
   12. Update status → 'completed'
 ```
 
@@ -211,10 +222,10 @@ Frontend detects shape by checking for `headlines` key:
 
 ### Edge Cases
 
-- **No content items**: Skip LLM calls, save empty digest with status `completed` and item_count 0.
+- **No content items**: Skip LLM calls, save digest with status `completed`, item_count 0, and `topic_groups` set to the canonical empty shape: `{ "headlines": [], "categories": [], "trend_analysis": "" }`. This ensures frontend always detects new format via the `headlines` key.
 - **<5 items**: Still run both phases (Phase 1 may flag 0-2 headlines).
 - **Phase 1 flags 0 headlines**: Skip Phase 2, output only categories + trend_analysis with empty `headlines[]`.
-- **Headline cap**: System enforces a hard cap of 10 headlines regardless of user prompt. If Phase 1 returns more, only the first 10 are sent to Phase 2.
+- **Headline cap**: System enforces a hard cap of 10 headlines regardless of user prompt. If Phase 1 returns more than 10, the extras are **downgraded into categories** (system creates a "Other Notable" category with one-liners synthesized from the Phase 1 topic field). This ensures no content is silently discarded.
 - **Missing PHASE_SEPARATOR**: Use entire prompt for Phase 1, system default prompt for Phase 2.
 
 ### Error Handling
@@ -224,7 +235,8 @@ Frontend detects shape by checking for `headlines` key:
 | **Invalid user prompt (LLM parse error)** | Log warning, fall back to default prompt, retry once. If default also fails → mark digest `failed`. |
 | **LLM network/timeout error** | Retry up to 2 times with exponential backoff. After exhaustion → mark digest `failed`. |
 | **Phase 1 returns invalid item_ids** | Silently drop unknown/duplicate IDs. If all headline IDs are invalid → skip Phase 2, output categories only. |
-| **Phase 2 missing analyses** | Log warning per missing headline. Drop headlines without analysis from output. If all fail → mark digest `failed`. |
+| **Phase 2 missing analyses** | Log warning per missing headline. Drop headlines without analysis from output. If all headlines are dropped but categories exist → complete with categories-only output (not failed). If both headlines and categories are empty → mark digest `failed`. |
 | **Phase 2 extra/unknown item_ids** | Silently drop. |
 | **Default prompt also fails** | Mark digest `failed` with error message. No further retry. |
 | **digest_prompt is empty string** | Treated same as null — use system default prompt. |
+| **JSON parseable but schema-invalid** | ResponseValidator checks: all required keys present, correct types (string/array), non-empty `item_id` strings. Missing required keys or wrong types → treated as parse error (same fallback-to-default flow). Empty arrays are valid (e.g., 0 headlines). |
