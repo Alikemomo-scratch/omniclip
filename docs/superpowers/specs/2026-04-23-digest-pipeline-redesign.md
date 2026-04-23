@@ -86,6 +86,13 @@ Metrics are extracted from metadata based on platform:
 
 **Template structure**: A single text template with `---PHASE_SEPARATOR---` dividing the two phases:
 
+**`PromptSplitter` rules**:
+- Input is trimmed. If trimmed result is empty → use system default prompt for both phases.
+- Split on the **first** occurrence of `---PHASE_SEPARATOR---` (exact literal match). Content before = Phase 1, content after = Phase 2.
+- If multiple `---PHASE_SEPARATOR---` exist, only the first is used as the split point; remaining separators are part of the Phase 2 text.
+- If no separator found → entire prompt is Phase 1; Phase 2 uses system default.
+- Each phase's text is trimmed independently. If a phase's text is empty after trim → that phase uses system default.
+
 ```
 # Phase 1: Screening & Classification
 You are a tech content curator. Classify the following content by topic and select
@@ -225,18 +232,32 @@ Frontend detects shape by checking for `headlines` key:
 - **No content items**: Skip LLM calls, save digest with status `completed`, item_count 0, and `topic_groups` set to the canonical empty shape: `{ "headlines": [], "categories": [], "trend_analysis": "" }`. This ensures frontend always detects new format via the `headlines` key.
 - **<5 items**: Still run both phases (Phase 1 may flag 0-2 headlines).
 - **Phase 1 flags 0 headlines**: Skip Phase 2, output only categories + trend_analysis with empty `headlines[]`.
-- **Headline cap**: System enforces a hard cap of 10 headlines regardless of user prompt. If Phase 1 returns more than 10, the extras are **downgraded into categories** (system creates a "Other Notable" category with one-liners synthesized from the Phase 1 topic field). This ensures no content is silently discarded.
+- **Headline cap**: System enforces a hard cap of 10 headlines regardless of user prompt. If Phase 1 returns more than 10, only the first 10 are kept as headlines; the rest are silently dropped (they were already classified with a topic by Phase 1 but receive no deep-dive). A warning is logged with the count of dropped headlines.
 - **Missing PHASE_SEPARATOR**: Use entire prompt for Phase 1, system default prompt for Phase 2.
 
 ### Error Handling
 
-| Failure | Behavior |
+**Per-phase failure matrix**:
+
+| Scenario | Phase 1 | Phase 2 | Digest Status |
+|----------|---------|---------|---------------|
+| User prompt succeeds | ✅ | ✅ | `completed` |
+| User prompt Phase 1 fails (parse/schema) | Retry with default prompt | — (not reached yet) | Depends on retry |
+| Default prompt Phase 1 fails | ❌ | — (skipped) | `failed` |
+| Phase 1 OK, user prompt Phase 2 fails | Keep Phase 1 result | Retry with default prompt | Depends on retry |
+| Phase 1 OK, default prompt Phase 2 fails | Keep Phase 1 result | ❌ | `completed` (categories-only, empty headlines, log warning) |
+| Phase 1 OK, Phase 2 partial (some headlines missing) | Keep Phase 1 result | Keep successful headlines | `completed` (log warnings for missing) |
+| LLM network/timeout (either phase) | Retry up to 2x with backoff | Retry up to 2x with backoff | `failed` if exhausted |
+
+**Key rules**:
+- Each phase retries independently. Phase 2 never triggers a Phase 1 re-run.
+- A successful Phase 1 result is always preserved — Phase 2 failure does not discard categories or trend_analysis.
+- Digest is marked `failed` only when Phase 1 cannot produce valid output (both user and default prompts fail, or network exhaustion).
+- If Phase 2 completely fails but Phase 1 succeeded, the digest completes with categories-only output (empty `headlines[]`).
+
+| Additional Failure | Behavior |
 |---------|----------|
-| **Invalid user prompt (LLM parse error)** | Log warning, fall back to default prompt, retry once. If default also fails → mark digest `failed`. |
-| **LLM network/timeout error** | Retry up to 2 times with exponential backoff. After exhaustion → mark digest `failed`. |
 | **Phase 1 returns invalid item_ids** | Silently drop unknown/duplicate IDs. If all headline IDs are invalid → skip Phase 2, output categories only. |
-| **Phase 2 missing analyses** | Log warning per missing headline. Drop headlines without analysis from output. If all headlines are dropped but categories exist → complete with categories-only output (not failed). If both headlines and categories are empty → mark digest `failed`. |
 | **Phase 2 extra/unknown item_ids** | Silently drop. |
-| **Default prompt also fails** | Mark digest `failed` with error message. No further retry. |
-| **digest_prompt is empty string** | Treated same as null — use system default prompt. |
+| **digest_prompt is empty/whitespace-only** | Treated same as null — use system default prompt. |
 | **JSON parseable but schema-invalid** | ResponseValidator checks: all required keys present, correct types (string/array), non-empty `item_id` strings. Missing required keys or wrong types → treated as parse error (same fallback-to-default flow). Empty arrays are valid (e.g., 0 headlines). |
