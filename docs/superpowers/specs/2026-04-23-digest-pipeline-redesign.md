@@ -21,19 +21,37 @@ Replace the existing map-reduce pipeline with a two-phase **screen → deep-dive
 **Input**: All content items in standardized summary format (body truncated to 500 chars).
 
 **LLM task**: Classify items by topic, judge importance, output two groups:
-- `headlines`: Item IDs flagged as important (to be deep-dived in Phase 2)
-- `categories`: Grouped minor items, each with a one-liner summary
+- `headlines`: Objects with `item_id` and `topic` for items flagged as important (to be deep-dived in Phase 2)
+- `categories`: Grouped minor items, each with `item_id` and `one_liner` summary
 - `trend_analysis`: Cross-platform trend paragraph
 
-**Output**: Structured JSON with headline IDs + categorized minor items.
+**Phase 1 JSON schema** (appended by system):
+```json
+{
+  "headlines": [{ "item_id": "uuid", "topic": "string" }],
+  "categories": [{ "topic": "string", "items": [{ "item_id": "uuid", "one_liner": "string" }] }],
+  "trend_analysis": "string"
+}
+```
+
+**Output**: Structured JSON with headline IDs + topics + categorized minor items.
+
+**Validation**: System validates all returned `item_id` values exist in the input set. Duplicates and unknown IDs are silently dropped.
 
 ### Phase 2: Headline Deep Dive
 
 **Input**: Only the items flagged as headlines — with **full original content** (body up to 3000 chars).
 
-**LLM task**: Write detailed newspaper-style analysis for each headline item.
+**LLM task**: Write detailed newspaper-style analysis for each headline item. Return `item_id` with each analysis for stable merging.
 
-**Output**: Array of headline objects with title, analysis, platform, URL.
+**Phase 2 JSON schema** (appended by system):
+```json
+[{ "item_id": "uuid", "title": "string", "analysis": "string" }]
+```
+
+**Output**: Array of headline objects with `item_id`, `title`, `analysis`. The system back-fills `topic` (from Phase 1), `platform`, and `original_url` (from source data) — these fields are never LLM-generated to avoid hallucination.
+
+**Validation**: System matches returned `item_id` values against Phase 1 headlines. Missing analyses are logged and the headline is dropped from output. Extra/unknown IDs are silently dropped.
 
 ### Content Standardization Format
 
@@ -95,25 +113,25 @@ The system appends the JSON schema requirement and content data automatically �
 ```typescript
 interface DigestOutput {
   headlines: {
-    item_id: string;
-    topic: string;
-    title: string;
-    analysis: string;
-    platform: string;
-    original_url: string;
+    item_id: string;       // from Phase 1
+    topic: string;         // from Phase 1
+    title: string;         // LLM-generated (Phase 2)
+    analysis: string;      // LLM-generated (Phase 2)
+    platform: string;      // system back-filled from source data
+    original_url: string;  // system back-filled from source data
   }[];
 
   categories: {
-    topic: string;
+    topic: string;           // LLM-generated (Phase 1)
     items: {
-      item_id: string;
-      one_liner: string;
-      platform: string;
-      original_url: string;
+      item_id: string;      // from Phase 1
+      one_liner: string;    // LLM-generated (Phase 1)
+      platform: string;     // system back-filled from source data
+      original_url: string; // system back-filled from source data
     }[];
   }[];
 
-  trend_analysis: string;
+  trend_analysis: string;  // LLM-generated (Phase 1)
 }
 ```
 
@@ -123,18 +141,24 @@ This replaces the existing `topic_groups` JSONB field. The column is reused (sam
 
 ```
 generateDigest(userId, digestType, periodStart, periodEnd, language)
-  1. Create pending digest record
-  2. Fetch user's digest_prompt (or use default)
-  3. Split prompt by ---PHASE_SEPARATOR---
-  4. Fetch content_items for the time period
-  5. Format all items in standardized summary format (500 char body)
-  6. Phase 1: userPromptPart1 + formatted summaries + JSON schema → LLM
-     → Parse response: headline IDs + categories + trend_analysis
-  7. Fetch full content for headline items (3000 char body)
-  8. Phase 2: userPromptPart2 + full headline content + JSON schema → LLM
-     → Parse response: headline analyses
-  9. Merge Phase 1 + Phase 2 into DigestOutput
-  10. Save to digest record, link content items via digest_items
+  1. Create pending digest record (status: 'pending')
+  2. Update status → 'generating'
+  3. Fetch user's digest_prompt (null/empty → use default)
+  4. PromptSplitter: split by ---PHASE_SEPARATOR--- → { phase1, phase2 }
+  5. Fetch content_items for the time period
+  6. ContentFormatter: format all items (500 char body) → summaries[]
+  7. Phase1Executor: phase1 prompt + summaries + schema → LLM
+     → ResponseValidator: validate JSON, filter invalid item_ids
+     → Back-fill platform/original_url from source data on categories
+     → Result: headlines[{item_id, topic}] + categories[] + trend_analysis
+  8. If headlines is empty → skip to step 10
+  9. ContentFormatter: format headline items (3000 char body) → fullContent[]
+     Phase2Executor: phase2 prompt + fullContent + schema → LLM
+     → ResponseValidator: validate JSON, match item_ids against Phase 1
+     → Merge: topic from Phase 1, title+analysis from Phase 2, platform+url from source
+  10. Assemble final DigestOutput, save to digest record
+  11. Link all processed content items via digest_items join table
+  12. Update status → 'completed'
 ```
 
 If the prompt has no `---PHASE_SEPARATOR---`, the entire prompt is used for Phase 1 only, and Phase 2 uses a hardcoded default deep-dive prompt.
@@ -142,12 +166,24 @@ If the prompt has no `---PHASE_SEPARATOR---`, the entire prompt is used for Phas
 ### Affected Components
 
 **Database**:
-- `users` table: Add `digest_prompt` text column (nullable)
+- `users` table: Add `digest_prompt` text column (nullable). Null and empty string both mean "use system default".
 - Migration: `0003_add_digest_prompt.sql`
 
-**Backend**:
-- `digest.service.ts`: Rewrite `generateDigest`, `generateMapReduceDigest`, `generateSimpleDigest` → new two-phase pipeline
-- `prompts/digest.prompts.ts`: Rewrite all prompt builders; add default prompt template, standardized content formatter, JSON schema instructions
+**Backend unit boundaries**:
+
+| Unit | Responsibility | Interface |
+|------|---------------|-----------|
+| `ContentFormatter` | Convert content items → standardized text blocks | `format(items, maxBodyLength) → string[]` |
+| `PromptSplitter` | Split user template by separator; fall back to defaults | `split(template) → { phase1: string, phase2: string }` |
+| `Phase1Executor` | Run Phase 1 LLM call, validate response, back-fill system fields | `execute(prompt, formattedItems, sourceItems) → Phase1Result` |
+| `Phase2Executor` | Run Phase 2 LLM call, validate response, merge with Phase 1 | `execute(prompt, headlineItems, phase1Headlines) → HeadlineResult[]` |
+| `ResponseValidator` | Validate LLM JSON against schema, filter invalid item_ids | `validate(response, schema, validIds) → parsed \| error` |
+| `DigestPipeline` | Orchestrate all units, handle errors, save result | `run(userId, type, period, language) → Digest` |
+
+**Backend files**:
+- `digest.service.ts`: Hosts `DigestPipeline` orchestration (rewrite `generateDigest`)
+- `prompts/digest.prompts.ts`: `ContentFormatter`, `PromptSplitter`, default prompt template, JSON schema strings
+- `prompts/digest.validators.ts`: `ResponseValidator` for Phase 1 and Phase 2 outputs
 - `users.service.ts` / DTO: Expose `digest_prompt` field in update profile
 - `users.controller.ts`: Ensure PATCH /users/me handles `digest_prompt`
 
@@ -177,6 +213,18 @@ Frontend detects shape by checking for `headlines` key:
 
 - **No content items**: Skip LLM calls, save empty digest with status `completed` and item_count 0.
 - **<5 items**: Still run both phases (Phase 1 may flag 0-2 headlines).
-- **Phase 1 flags 0 headlines**: Skip Phase 2, output only categories + trend_analysis.
-- **Invalid user prompt**: Catch LLM parse errors, fall back to default prompt, retry once.
-- **Missing PHASE_SEPARATOR**: Use entire prompt for Phase 1, default prompt for Phase 2.
+- **Phase 1 flags 0 headlines**: Skip Phase 2, output only categories + trend_analysis with empty `headlines[]`.
+- **Headline cap**: System enforces a hard cap of 10 headlines regardless of user prompt. If Phase 1 returns more, only the first 10 are sent to Phase 2.
+- **Missing PHASE_SEPARATOR**: Use entire prompt for Phase 1, system default prompt for Phase 2.
+
+### Error Handling
+
+| Failure | Behavior |
+|---------|----------|
+| **Invalid user prompt (LLM parse error)** | Log warning, fall back to default prompt, retry once. If default also fails → mark digest `failed`. |
+| **LLM network/timeout error** | Retry up to 2 times with exponential backoff. After exhaustion → mark digest `failed`. |
+| **Phase 1 returns invalid item_ids** | Silently drop unknown/duplicate IDs. If all headline IDs are invalid → skip Phase 2, output categories only. |
+| **Phase 2 missing analyses** | Log warning per missing headline. Drop headlines without analysis from output. If all fail → mark digest `failed`. |
+| **Phase 2 extra/unknown item_ids** | Silently drop. |
+| **Default prompt also fails** | Mark digest `failed` with error message. No further retry. |
+| **digest_prompt is empty string** | Treated same as null — use system default prompt. |
