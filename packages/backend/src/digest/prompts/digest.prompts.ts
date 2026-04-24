@@ -312,3 +312,74 @@ export function formatContentItems(
     return lines.join('\n');
   });
 }
+
+// ── Default Prompt Templates ──
+
+const PHASE_SEPARATOR = '---PHASE_SEPARATOR---';
+
+export const DEFAULT_PHASE1_PROMPT = `You are a tech content curator. Classify the following content by topic and select the 3-5 most important items as headlines.
+
+Importance criteria:
+- Major releases or breakthroughs in AI/LLM
+- Widely impactful technical changes
+- Significant product launches
+
+For non-headline items, write a one-liner summary each.`;
+
+export const DEFAULT_PHASE2_PROMPT = `You are a senior tech journalist. Write detailed analysis for each important item in newspaper headline style:
+- What is it and why it matters
+- Impact on the industry/developers
+- Key technical details`;
+
+// ── JSON Schema Strings (appended by system to LLM prompts) ──
+
+export const PHASE1_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences):
+{
+  "headlines": [{ "item_id": "uuid-string", "topic": "Topic Name" }],
+  "categories": [{ "topic": "Topic Name", "items": [{ "item_id": "uuid-string", "one_liner": "One sentence summary" }] }],
+  "trend_analysis": "Cross-platform trend analysis paragraph"
+}`;
+
+export const PHASE2_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences):
+[{ "item_id": "uuid-string", "title": "Headline Title", "analysis": "Detailed newspaper-style analysis paragraph" }]`;
+
+// ── PromptSplitter ──
+
+export interface SplitPromptResult {
+  phase1: string;
+  phase2: string;
+}
+
+/**
+ * Split a user prompt template by ---PHASE_SEPARATOR---.
+ *
+ * Rules (from spec):
+ * - Input is trimmed. If empty → use defaults for both phases.
+ * - Split on FIRST occurrence of ---PHASE_SEPARATOR---.
+ * - If no separator → entire prompt is Phase 1, Phase 2 uses default.
+ * - Each phase trimmed independently. If empty after trim → use default.
+ */
+export function splitPromptTemplate(
+  template: string | null | undefined,
+): SplitPromptResult {
+  const trimmed = (template ?? '').trim();
+
+  if (!trimmed) {
+    return { phase1: DEFAULT_PHASE1_PROMPT, phase2: DEFAULT_PHASE2_PROMPT };
+  }
+
+  const separatorIndex = trimmed.indexOf(PHASE_SEPARATOR);
+
+  if (separatorIndex === -1) {
+    // No separator — entire prompt is Phase 1
+    return { phase1: trimmed, phase2: DEFAULT_PHASE2_PROMPT };
+  }
+
+  const phase1Raw = trimmed.slice(0, separatorIndex).trim();
+  const phase2Raw = trimmed.slice(separatorIndex + PHASE_SEPARATOR.length).trim();
+
+  return {
+    phase1: phase1Raw || DEFAULT_PHASE1_PROMPT,
+    phase2: phase2Raw || DEFAULT_PHASE2_PROMPT,
+  };
+}
