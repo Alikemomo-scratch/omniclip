@@ -26,7 +26,7 @@ describe('GitHubConnector', () => {
 
   beforeEach(() => {
     connector = new GitHubConnector();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('should have correct platform and type', () => {
@@ -139,55 +139,11 @@ describe('GitHubConnector', () => {
         }),
       });
 
-      // Mock events response
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Map([
-          ['x-ratelimit-remaining', '4898'],
-          ['link', ''],
-        ]),
-        json: async () => [
-          {
-            id: '67890',
-            type: 'ReleaseEvent',
-            actor: {
-              login: 'octocat',
-              url: 'https://api.github.com/users/octocat',
-            },
-            repo: {
-              name: 'octocat/hello-world',
-              url: 'https://api.github.com/repos/octocat/hello-world',
-            },
-            payload: {
-              action: 'published',
-              release: {
-                id: 999,
-                tag_name: 'v1.0.0',
-                name: 'Release v1.0.0',
-                body: 'First release!',
-                html_url: 'https://github.com/octocat/hello-world/releases/tag/v1.0.0',
-                published_at: '2026-03-10T05:00:00Z',
-              },
-            },
-            created_at: '2026-03-10T05:00:00Z',
-          },
-        ],
-      });
-
       const result = await connector.fetchContent(makeConnection(), null);
 
       expect(result.items.length).toBeGreaterThanOrEqual(1);
       expect(result.has_more).toBe(false);
-      expect(result.metadata.api_calls_made).toBeGreaterThanOrEqual(3);
-
-      // Check that release event was parsed
-      const release = result.items.find(
-        (i) => i.content_type === 'release' && i.title?.includes('v1.0.0'),
-      );
-      expect(release).toBeDefined();
-      expect(release?.title).toContain('v1.0.0');
-      expect(release?.original_url).toContain('releases');
+      expect(result.metadata.api_calls_made).toBeGreaterThanOrEqual(2);
 
       // Check that starred repo's latest release was parsed
       const starred = result.items.find((i) => i.title?.includes('Release v0.9.0'));
@@ -198,7 +154,7 @@ describe('GitHubConnector', () => {
     it('should filter by since parameter', async () => {
       const since = new Date('2026-03-09T00:00:00Z');
 
-      // Starred repos — empty
+      // Starred repos — empty (no release calls needed)
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -206,18 +162,10 @@ describe('GitHubConnector', () => {
         json: async () => [],
       });
 
-      // Events — empty
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Map([['x-ratelimit-remaining', '4899']]),
-        json: async () => [],
-      });
-
       const result = await connector.fetchContent(makeConnection(), since);
 
       expect(result.items).toEqual([]);
-      expect(result.metadata.api_calls_made).toBe(2);
+      expect(result.metadata.api_calls_made).toBe(1);
     });
 
     it('should throw ConnectorError on 401', async () => {
@@ -262,27 +210,19 @@ describe('GitHubConnector', () => {
   });
 
   describe('parseResponse', () => {
-    it('should parse release event data', () => {
+    it('should return empty array (events parsing removed — only starred repos used)', () => {
       const rawData = {
         type: 'events',
         data: [
           {
             id: '123',
             type: 'ReleaseEvent',
-            actor: {
-              login: 'octocat',
-              url: 'https://api.github.com/users/octocat',
-            },
-            repo: {
-              name: 'octocat/hello-world',
-              url: 'https://api.github.com/repos/octocat/hello-world',
-            },
+            actor: { login: 'octocat', url: 'https://api.github.com/users/octocat' },
+            repo: { name: 'octocat/hello-world', url: '' },
             payload: {
               action: 'published',
               release: {
-                id: 999,
-                tag_name: 'v2.0.0',
-                name: 'Release v2.0.0',
+                id: 999, tag_name: 'v2.0.0', name: 'Release v2.0.0',
                 body: 'Major update',
                 html_url: 'https://github.com/octocat/hello-world/releases/tag/v2.0.0',
                 published_at: '2026-03-10T10:00:00Z',
@@ -293,76 +233,7 @@ describe('GitHubConnector', () => {
         ],
       };
 
-      const items = connector.parseResponse(rawData);
-
-      expect(items).toHaveLength(1);
-      expect(items[0].external_id).toBe('github-event-123');
-      expect(items[0].content_type).toBe('release');
-      expect(items[0].title).toBe('Release v2.0.0');
-      expect(items[0].body).toBe('Major update');
-      expect(items[0].author_name).toBe('octocat');
-      expect(items[0].original_url).toContain('releases');
-    });
-
-    it('should ignore push event data', () => {
-      const rawData = {
-        type: 'events',
-        data: [
-          {
-            id: '456',
-            type: 'PushEvent',
-            actor: {
-              login: 'devuser',
-              url: 'https://api.github.com/users/devuser',
-            },
-            repo: {
-              name: 'devuser/my-project',
-              url: 'https://api.github.com/repos/devuser/my-project',
-            },
-            payload: {
-              ref: 'refs/heads/main',
-              size: 2,
-              commits: [
-                {
-                  sha: 'abc123',
-                  message: 'feat: add new feature',
-                  url: 'https://api.github.com/repos/devuser/my-project/commits/abc123',
-                },
-                {
-                  sha: 'def456',
-                  message: 'fix: resolve bug',
-                  url: 'https://api.github.com/repos/devuser/my-project/commits/def456',
-                },
-              ],
-            },
-            created_at: '2026-03-10T09:00:00Z',
-          },
-        ],
-      };
-
-      const items = connector.parseResponse(rawData);
-
-      expect(items).toHaveLength(0);
-    });
-
-    it('should return empty array for unknown event types', () => {
-      const rawData = {
-        type: 'events',
-        data: [
-          {
-            id: '789',
-            type: 'WatchEvent',
-            actor: { login: 'user', url: '' },
-            repo: { name: 'repo', url: '' },
-            payload: {},
-            created_at: '2026-03-10T09:00:00Z',
-          },
-        ],
-      };
-
-      const items = connector.parseResponse(rawData);
-      // WatchEvent is not a content-producing event, should be skipped
-      expect(items).toHaveLength(0);
+      expect(connector.parseResponse(rawData)).toEqual([]);
     });
 
     it('should return empty array for invalid input', () => {

@@ -10,7 +10,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v
 interface PlatformConfig {
   id: string;
   label: string;
-  authType: 'token' | 'oauth' | 'extension';
+  authType: 'token' | 'oauth' | 'cookie';
   authField?: string;
   placeholder?: string;
 }
@@ -24,8 +24,7 @@ const PLATFORMS: PlatformConfig[] = [
     placeholder: 'ghp_...',
   },
   { id: 'youtube', label: 'YouTube', authType: 'oauth' },
-  { id: 'twitter', label: 'Twitter / X', authType: 'extension' },
-  { id: 'xiaohongshu', label: 'Xiaohongshu / 小红书', authType: 'extension' },
+  { id: 'twitter', label: 'Twitter / X', authType: 'cookie' },
 ];
 
 export default function ConnectionsPage() {
@@ -35,6 +34,10 @@ export default function ConnectionsPage() {
   const [authToken, setAuthToken] = useState('');
   const [syncInterval, setSyncInterval] = useState('60');
   const [error, setError] = useState('');
+
+  const [twitterAuthTab, setTwitterAuthTab] = useState<'apikey' | 'cookies'>('apikey');
+  const [twitterAuthToken, setTwitterAuthToken] = useState('');
+  const [twitterCt0, setTwitterCt0] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['connections'],
@@ -69,6 +72,9 @@ export default function ConnectionsPage() {
       setSelectedPlatform('');
       setAuthToken('');
       setError('');
+      setTwitterAuthTab('apikey');
+      setTwitterAuthToken('');
+      setTwitterCt0('');
     },
     onError: (err: ApiError) => {
       setError(err.message || 'Failed to create connection');
@@ -106,22 +112,30 @@ export default function ConnectionsPage() {
   function handleAddConnection(e: React.FormEvent) {
     e.preventDefault();
     const platform = dynamicPlatforms.find((p) => p.id === selectedPlatform);
-    if (!platform || (platform.authType === 'token' && !platform.authField)) return;
+    if (!platform) return;
+    
+    if (platform.authType === 'token' && !platform.authField) return;
+
+    if (platform.authType === 'cookie') {
+      const authData = twitterAuthTab === 'apikey'
+        ? { api_key: authToken }
+        : { auth_token: twitterAuthToken, ct0: twitterCt0 };
+      
+      createMutation.mutate({
+        platform: selectedPlatform,
+        connection_type: 'api',
+        auth_data: authData,
+        sync_interval_minutes: parseInt(syncInterval, 10),
+      });
+      return;
+    }
 
     createMutation.mutate({
       platform: selectedPlatform,
-      connection_type: platform.authType === 'extension' ? 'extension' : 'api',
+      connection_type: 'api',
       auth_data: platform.authType === 'token' ? { [platform.authField!]: authToken } : undefined,
       sync_interval_minutes: parseInt(syncInterval, 10),
     });
-  }
-
-  function handleCopyToken() {
-    const token = getToken();
-    if (token) {
-      navigator.clipboard.writeText(token);
-      alert('Token copied to clipboard! Paste it into the OmniClip extension popup.');
-    }
   }
 
   return (
@@ -129,16 +143,22 @@ export default function ConnectionsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Connections</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage your connected platforms. For extension-based platforms,{' '}
-            <button onClick={handleCopyToken} className="text-blue-600 hover:underline">
-              click here to copy your token
-            </button>{' '}
-            for the extension popup.
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Manage your connected platforms.</p>
         </div>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (!showAddForm) {
+              setShowAddForm(true);
+            } else {
+              setShowAddForm(false);
+              setSelectedPlatform('');
+              setAuthToken('');
+              setError('');
+              setTwitterAuthTab('apikey');
+              setTwitterAuthToken('');
+              setTwitterCt0('');
+            }
+          }}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
         >
           {showAddForm ? 'Cancel' : 'Add Connection'}
@@ -181,6 +201,7 @@ export default function ConnectionsPage() {
                 onChange={(e) => setSyncInterval(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
+                <option value="30" disabled={selectedPlatform !== 'twitter'}>Every 30 minutes</option>
                 <option value="60">Every 1 hour</option>
                 <option value="360">Every 6 hours</option>
                 <option value="1440">Every 1 day</option>
@@ -212,20 +233,78 @@ export default function ConnectionsPage() {
                   );
                 }
 
-                if (platform.authType === 'extension') {
+                if (platform.authType === 'cookie') {
                   return (
-                    <div>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {platform.label} is synced automatically via the OmniClip browser extension.
-                        Make sure the extension is installed and you are logged into{' '}
-                        {platform.label} in your browser.
-                      </p>
+                    <div className="space-y-4">
+                      <div className="flex space-x-2 border-b border-gray-200 mb-4">
+                        <button
+                          type="button"
+                          className={`py-2 px-4 text-sm font-medium border-b-2 ${twitterAuthTab === 'apikey' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                          onClick={() => setTwitterAuthTab('apikey')}
+                        >
+                          API Key
+                        </button>
+                        <button
+                          type="button"
+                          className={`py-2 px-4 text-sm font-medium border-b-2 ${twitterAuthTab === 'cookies' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                          onClick={() => setTwitterAuthTab('cookies')}
+                        >
+                          Manual Cookies
+                        </button>
+                      </div>
+                      
+                      {twitterAuthTab === 'apikey' ? (
+                        <div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            Use the X Auth Helper browser extension to generate an API key. Install from Chrome Web Store, click &quot;Get API Key&quot;, and paste below.
+                          </p>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                          <input
+                            type="password"
+                            required
+                            value={authToken}
+                            onChange={(e) => setAuthToken(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Paste API key from X Auth Helper..."
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-600 mb-3">
+                            Open x.com &rarr; Press F12 &rarr; Application tab &rarr; Cookies &rarr; x.com. Copy these two cookies:
+                          </p>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">auth_token</label>
+                              <input
+                                type="password"
+                                required
+                                value={twitterAuthToken}
+                                onChange={(e) => setTwitterAuthToken(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Your auth_token cookie value"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">ct0</label>
+                              <input
+                                type="password"
+                                required
+                                value={twitterCt0}
+                                onChange={(e) => setTwitterCt0(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Your ct0 cookie value"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <button
                         type="submit"
                         disabled={createMutation.isPending}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                       >
-                        {createMutation.isPending ? 'Connecting...' : `Enable ${platform.label}`}
+                        {createMutation.isPending ? 'Connecting...' : 'Connect'}
                       </button>
                     </div>
                   );
@@ -270,17 +349,23 @@ export default function ConnectionsPage() {
       ) : (
         <div className="space-y-4">
           {data.connections.map((conn: Connection) => (
-            <ConnectionCard
-              key={conn.id}
-              connection={conn}
-              onTest={() => testMutation.mutate(conn.id)}
-              onSync={() => syncMutation.mutate(conn.id)}
-              onDelete={() => {
-                if (confirm('Are you sure you want to disconnect?')) {
-                  deleteMutation.mutate(conn.id);
-                }
-              }}
-              testResult={
+              <ConnectionCard
+                key={conn.id}
+                connection={conn}
+                onTest={() => testMutation.mutate(conn.id)}
+                onSync={() => syncMutation.mutate(conn.id)}
+                onDelete={() => {
+                  if (confirm('Are you sure you want to disconnect?')) {
+                    deleteMutation.mutate(conn.id);
+                  }
+                }}
+                onUpdateCookies={() => {
+                  setSelectedPlatform(conn.platform);
+                  setTwitterAuthTab('cookies');
+                  setShowAddForm(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                testResult={
                 testMutation.variables === conn.id
                   ? {
                       loading: testMutation.isPending,
@@ -309,6 +394,7 @@ function ConnectionCard({
   onTest,
   onSync,
   onDelete,
+  onUpdateCookies,
   testResult,
   syncState,
 }: {
@@ -316,6 +402,7 @@ function ConnectionCard({
   onTest: () => void;
   onSync: () => void;
   onDelete: () => void;
+  onUpdateCookies: () => void;
   testResult?: {
     loading: boolean;
     data?: { status: string; message: string } | null;
@@ -325,12 +412,18 @@ function ConnectionCard({
     loading: boolean;
   };
 }) {
+  const isAuthError = connection.status === 'error' && connection.last_error && (connection.last_error.includes('AUTH_EXPIRED') || connection.last_error.toLowerCase().includes('credential'));
+
   const statusColor =
     connection.status === 'active'
       ? 'bg-green-100 text-green-800'
-      : connection.status === 'error'
-        ? 'bg-red-100 text-red-800'
-        : 'bg-gray-100 text-gray-800';
+      : isAuthError
+        ? 'bg-orange-100 text-orange-800'
+        : connection.status === 'error'
+          ? 'bg-red-100 text-red-800'
+          : 'bg-gray-100 text-gray-800';
+
+  const statusLabel = isAuthError ? 'Credential Expired' : connection.status;
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-sm border">
@@ -354,27 +447,25 @@ function ConnectionCard({
 
         <div className="flex items-center gap-3">
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
-            {connection.status}
+            {statusLabel}
           </span>
 
-          {connection.connection_type === 'api' ? (
+          {isAuthError && connection.platform === 'twitter' && (
+            <button
+              onClick={onUpdateCookies}
+              className="px-3 py-1.5 text-sm bg-orange-50 text-orange-700 border border-orange-200 rounded-md hover:bg-orange-100"
+            >
+              Update Cookies
+            </button>
+          )}
+
+          {connection.connection_type === 'api' && (
             <button
               onClick={onSync}
               disabled={syncState?.loading || connection.status !== 'active'}
               className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
             >
               {syncState?.loading ? 'Syncing...' : 'Sync Now'}
-            </button>
-          ) : (
-            <button
-              onClick={() =>
-                alert(
-                  'This connection is synced securely in the background by your OmniClip browser extension (based on the sync interval you configured). To trigger a manual sync immediately, open the OmniClip extension popup in your browser toolbar and click "Sync Now".',
-                )
-              }
-              className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100"
-            >
-              Sync Info
             </button>
           )}
 

@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
   Query,
   Body,
@@ -75,6 +77,27 @@ export class DigestController {
       throw new NotFoundException('Digest not found');
     }
     return digest;
+  }
+
+  @Patch(':id/archive')
+  @HttpCode(204)
+  async archive(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const userId = (req.user as { userId: string }).userId;
+    await this.digestService.archive(userId, id);
+  }
+
+  @Patch(':id/unarchive')
+  @HttpCode(204)
+  async unarchive(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const userId = (req.user as { userId: string }).userId;
+    await this.digestService.unarchive(userId, id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const userId = (req.user as { userId: string }).userId;
+    await this.digestService.remove(userId, id);
   }
 
   /**

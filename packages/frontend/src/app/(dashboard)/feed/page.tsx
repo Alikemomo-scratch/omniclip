@@ -1,28 +1,31 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contentApi } from '@/lib/api-client';
 import type { ContentItem } from '@/lib/api-client';
 
-const PLATFORMS = ['github', 'youtube', 'xiaohongshu', 'twitter'] as const;
+const PLATFORMS = ['github', 'youtube', 'twitter'] as const;
 const LIMIT = 20;
 
 export default function FeedPage() {
   const [platform, setPlatform] = useState<string>('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const queryClient = useQueryClient();
   const observerTarget = useRef<HTMLDivElement>(null);
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error } =
     useInfiniteQuery({
-      queryKey: ['content', platform, search],
+      queryKey: ['content', platform, search, showArchived],
       queryFn: ({ pageParam = 1 }) =>
         contentApi.list({
           page: pageParam,
           limit: LIMIT,
           platform: platform || undefined,
           search: search || undefined,
+          archived: showArchived || undefined,
         }),
       getNextPageParam: (lastPage) => {
         const { page, total_pages } = lastPage.pagination;
@@ -30,6 +33,21 @@ export default function FeedPage() {
       },
       initialPageParam: 1,
     });
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => contentApi.archive(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content'] }),
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: (id: string) => contentApi.unarchive(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => contentApi.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content'] }),
+  });
 
   // Infinite scroll observer
   const handleObserver = useCallback(
@@ -66,6 +84,29 @@ export default function FeedPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-4">Content Feed</h1>
+
+        <div className="flex gap-1 mb-4 border-b border-gray-200">
+          <button
+            onClick={() => setShowArchived(false)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              !showArchived
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            全部
+          </button>
+          <button
+            onClick={() => setShowArchived(true)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              showArchived
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            已归档
+          </button>
+        </div>
 
         {/* Search bar */}
         <form onSubmit={handleSearch} className="flex gap-2 mb-4">
@@ -158,7 +199,14 @@ export default function FeedPage() {
       {/* Content cards */}
       <div className="space-y-4">
         {allItems.map((item) => (
-          <ContentCard key={item.id} item={item} />
+          <ContentCard
+            key={item.id}
+            item={item}
+            showArchived={showArchived}
+            onArchive={(id) => archiveMutation.mutate(id)}
+            onUnarchive={(id) => unarchiveMutation.mutate(id)}
+            onDelete={(id) => deleteMutation.mutate(id)}
+          />
         ))}
       </div>
 
@@ -178,26 +226,31 @@ export default function FeedPage() {
   );
 }
 
-function ContentCard({ item }: { item: ContentItem }) {
+function ContentCard({
+  item,
+  showArchived,
+  onArchive,
+  onUnarchive,
+  onDelete,
+}: {
+  item: ContentItem;
+  showArchived: boolean;
+  onArchive: (id: string) => void;
+  onUnarchive: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const platformColors: Record<string, string> = {
     github: 'bg-gray-800 text-white',
     youtube: 'bg-red-600 text-white',
-    xiaohongshu: 'bg-red-500 text-white',
     twitter: 'bg-blue-500 text-white',
   };
 
   const badgeClass = platformColors[item.platform] || 'bg-gray-200 text-gray-800';
 
   return (
-    <a
-      href={item.original_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block p-5 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-    >
+    <div className="p-5 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Platform badge + content type */}
           <div className="flex items-center gap-2 mb-2">
             <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${badgeClass}`}>
               {item.platform}
@@ -205,13 +258,32 @@ function ContentCard({ item }: { item: ContentItem }) {
             <span className="text-xs text-gray-400 capitalize">{item.content_type}</span>
           </div>
 
-          {/* Title */}
-          {item.title && <h3 className="font-medium text-gray-900 mb-1 truncate">{item.title}</h3>}
+          {item.title && (
+            <a
+              href={item.original_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-gray-900 mb-1 truncate block hover:text-blue-600 hover:underline"
+            >
+              {item.title}
+            </a>
+          )}
 
-          {/* Body preview */}
-          {item.body && <p className="text-sm text-gray-600 line-clamp-3">{item.body}</p>}
+          {item.body && (
+            item.original_url && !item.title ? (
+              <a
+                href={item.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-600 line-clamp-3 block hover:text-blue-600"
+              >
+                {item.body}
+              </a>
+            ) : (
+              <p className="text-sm text-gray-600 line-clamp-3">{item.body}</p>
+            )
+          )}
 
-          {/* Meta row */}
           <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
             {item.author_name && <span>by {item.author_name}</span>}
             <span>{new Date(item.published_at).toLocaleDateString()}</span>
@@ -222,14 +294,48 @@ function ContentCard({ item }: { item: ContentItem }) {
             )}
           </div>
         </div>
+
+        <div className="flex gap-1 flex-shrink-0">
+          {showArchived ? (
+            <button
+              onClick={() => onUnarchive(item.id)}
+              title="恢复"
+              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 15.707a1 1 0 010-1.414l5-5a1 1 0 011.414 0l5 5a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M4.293 9.707a1 1 0 010-1.414l5-5a1 1 0 011.414 0l5 5a1 1 0 01-1.414 1.414L10 5.414 5.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={() => onArchive(item.id)}
+              title="归档"
+              className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(item.id)}
+            title="删除"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {/* AI Summary section */}
       {item.ai_summary && (
         <div className="mt-3 p-3 bg-purple-50 rounded-md">
           <p className="text-sm text-purple-800">{item.ai_summary}</p>
         </div>
       )}
-    </a>
+    </div>
   );
 }

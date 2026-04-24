@@ -4,7 +4,7 @@ Auto-generated from all feature plans. Last updated: 2026-03-10
 
 ## Active Technologies
 
-- TypeScript 5.x (Node.js 20 LTS) (001-content-aggregator)
+- TypeScript 5.x (Node.js 22 LTS) (001-content-aggregator)
 
 ## Project Structure
 
@@ -16,15 +16,15 @@ tests/
 
 ## Commands
 
-npm test && npm run lint
+pnpm test && pnpm build
 
 ## Code Style
 
-TypeScript 5.x (Node.js 20 LTS): Follow standard conventions
+TypeScript 5.x (Node.js 22 LTS): Follow standard conventions
 
 ## Recent Changes
 
-- 001-content-aggregator: Added TypeScript 5.x (Node.js 20 LTS)
+- 001-content-aggregator: Migrated to Node.js 22 LTS (rettiwt-api v7 requirement)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

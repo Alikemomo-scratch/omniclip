@@ -37,6 +37,9 @@ coverage/
 # Extension build
 packages/extension/dist/
 
+# Extension archived — removed from MVP scope (v3)
+packages/extension/
+
 # Database (migrations are tracked — don't ignore them)
 
 # Misc

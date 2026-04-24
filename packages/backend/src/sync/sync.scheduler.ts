@@ -68,7 +68,15 @@ export class SyncScheduler implements OnApplicationBootstrap {
     syncIntervalMinutes: number,
   ): Promise<void> {
     const jobId = `sync:${connectionId}`;
-    const every = syncIntervalMinutes * 60 * 1000; // convert to ms
+
+    const TWITTER_MIN_INTERVAL_MINUTES = 30;
+    const effectiveInterval =
+      platform === 'twitter'
+        ? Math.max(syncIntervalMinutes, TWITTER_MIN_INTERVAL_MINUTES)
+        : syncIntervalMinutes;
+
+    const jitterFactor = 0.8 + Math.random() * 0.4;
+    const every = Math.round(effectiveInterval * 60 * 1000 * jitterFactor);
 
     await this.syncQueue.add(
       jobId,
@@ -80,7 +88,9 @@ export class SyncScheduler implements OnApplicationBootstrap {
     );
 
     this.logger.log(
-      `Scheduled sync for connection ${connectionId} every ${syncIntervalMinutes}min`,
+      `Scheduled sync for connection ${connectionId} (${platform}) every ${effectiveInterval}min (with jitter: ${Math.round(
+        every / 1000 / 60,
+      )}min)`,
     );
   }
 
@@ -161,5 +171,45 @@ export class SyncScheduler implements OnApplicationBootstrap {
 
       return { jobs };
     });
+  }
+
+  /**
+   * Called by the sync processor on job failure.
+   * Reschedules with exponential backoff: base × 2^n, capped at 1 hour.
+   */
+  async handleSyncFailure(
+    connectionId: string,
+    userId: string,
+    platform: string,
+    consecutiveFailures: number,
+  ): Promise<void> {
+    const baseInterval = platform === 'twitter' ? 30 : 60;
+    const backoffMultiplier = Math.min(Math.pow(2, consecutiveFailures), 60 / baseInterval);
+    const backoffMinutes = Math.min(baseInterval * backoffMultiplier, 60);
+
+    this.logger.warn(
+      `Connection ${connectionId} failed ${consecutiveFailures} times, backing off to ${backoffMinutes}min`,
+    );
+
+    await this.removeConnection(connectionId);
+    await this.scheduleConnection(connectionId, userId, platform, backoffMinutes);
+  }
+
+  /**
+   * Called by the sync processor on job success after previous failures.
+   * Restores original sync interval.
+   */
+  async handleSyncRecovery(
+    connectionId: string,
+    userId: string,
+    platform: string,
+    originalIntervalMinutes: number,
+  ): Promise<void> {
+    this.logger.log(
+      `Connection ${connectionId} recovered, restoring ${originalIntervalMinutes}min interval`,
+    );
+
+    await this.removeConnection(connectionId);
+    await this.scheduleConnection(connectionId, userId, platform, originalIntervalMinutes);
   }
 }

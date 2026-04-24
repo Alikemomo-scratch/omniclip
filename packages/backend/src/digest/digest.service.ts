@@ -1,6 +1,6 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { eq, and, gte, lte, sql, count, desc } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, count, desc, isNull, isNotNull } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -134,7 +134,10 @@ export class DigestService {
   /**
    * List digests for a user with pagination.
    */
-  async findAll(userId: string, query: { page?: number; limit?: number; type?: string }) {
+  async findAll(
+    userId: string,
+    query: { page?: number; limit?: number; type?: string; archived?: string },
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
     const offset = (page - 1) * limit;
@@ -143,6 +146,11 @@ export class DigestService {
       const conditions = [];
       if (query.type) {
         conditions.push(eq(digests.digestType, query.type));
+      }
+      if (query.archived === 'true') {
+        conditions.push(isNotNull(digests.archivedAt));
+      } else {
+        conditions.push(isNull(digests.archivedAt));
       }
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -165,6 +173,7 @@ export class DigestService {
           topic_groups: digests.topicGroups,
           trend_analysis: digests.trendAnalysis,
           created_at: digests.createdAt,
+          archived_at: digests.archivedAt,
         })
         .from(digests)
         .where(whereClause)
@@ -202,11 +211,57 @@ export class DigestService {
           topic_groups: digests.topicGroups,
           trend_analysis: digests.trendAnalysis,
           created_at: digests.createdAt,
+          archived_at: digests.archivedAt,
         })
         .from(digests)
         .where(eq(digests.id, digestId));
 
       return row ?? null;
+    });
+  }
+
+  async archive(userId: string, digestId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: digests.id })
+        .from(digests)
+        .where(eq(digests.id, digestId));
+
+      if (!existing) {
+        throw new NotFoundException('Digest not found');
+      }
+
+      await tx.update(digests).set({ archivedAt: new Date() }).where(eq(digests.id, digestId));
+    });
+  }
+
+  async unarchive(userId: string, digestId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: digests.id })
+        .from(digests)
+        .where(eq(digests.id, digestId));
+
+      if (!existing) {
+        throw new NotFoundException('Digest not found');
+      }
+
+      await tx.update(digests).set({ archivedAt: null }).where(eq(digests.id, digestId));
+    });
+  }
+
+  async remove(userId: string, digestId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: digests.id })
+        .from(digests)
+        .where(eq(digests.id, digestId));
+
+      if (!existing) {
+        throw new NotFoundException('Digest not found');
+      }
+
+      await tx.delete(digests).where(eq(digests.id, digestId));
     });
   }
 

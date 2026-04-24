@@ -1,10 +1,10 @@
 import { IsString, IsEnum, IsOptional, IsInt, Min, Max, IsObject } from 'class-validator';
 
 export class CreateConnectionDto {
-  @IsEnum(['github', 'youtube', 'twitter', 'xiaohongshu'])
+  @IsEnum(['github', 'youtube', 'twitter'])
   platform!: string;
 
-  @IsEnum(['api', 'extension'])
+  @IsEnum(['api', 'cookie', 'extension'])
   connection_type!: string;
 
   @IsOptional()

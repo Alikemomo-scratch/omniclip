@@ -35,7 +35,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
   async function setupUserWithExtensionConnection(
     email: string,
     name: string,
-    platform: 'xiaohongshu' | 'twitter' = 'xiaohongshu',
+    platform: 'twitter' = 'twitter',
   ) {
     const regRes = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
@@ -84,7 +84,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
   it('should reject unauthenticated heartbeat with 401', async () => {
     const res = await request(app.getHttpServer()).post('/api/v1/sync/heartbeat').send({
       connection_id: '00000000-0000-0000-0000-000000000001',
-      platform: 'xiaohongshu',
+      platform: 'twitter',
       status: 'active',
     });
 
@@ -99,7 +99,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: randomUUID(),
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'active',
       });
 
@@ -116,7 +116,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'active',
         last_collection_at: new Date().toISOString(),
         items_buffered: 3,
@@ -136,7 +136,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'active',
       })
       .expect(200);
@@ -163,7 +163,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'error',
         error_type: 'auth_expired',
         error_message: 'Platform login session expired',
@@ -194,7 +194,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           connection_id: connectionId,
-          platform: 'xiaohongshu',
+          platform: 'twitter',
           status: 'error',
           error_message: `Error attempt ${i + 1}`,
         })
@@ -221,7 +221,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'error',
         error_message: 'Some error',
       })
@@ -233,7 +233,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         connection_id: connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'active',
       })
       .expect(200);
@@ -260,7 +260,7 @@ describe('Heartbeat Endpoint (Integration)', () => {
       .set('Authorization', `Bearer ${userA.token}`)
       .send({
         connection_id: userB.connectionId,
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         status: 'active',
       });
 

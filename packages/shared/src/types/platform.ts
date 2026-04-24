@@ -1,7 +1,7 @@
 /**
  * Platform identifiers — extend this union type when adding new platforms.
  */
-export type PlatformId = 'github' | 'youtube' | 'twitter' | 'xiaohongshu';
+export type PlatformId = 'github' | 'youtube' | 'twitter';
 
 /**
  * Content type identifiers across all platforms.
@@ -11,12 +11,17 @@ export type ContentType = 'post' | 'video' | 'commit' | 'release' | 'issue' | 't
 /**
  * Connection type — how the platform is connected.
  */
-export type ConnectionType = 'api' | 'extension';
+export type ConnectionType = 'api' | 'cookie' | 'extension';
+
+/**
+ * Credential type — how the platform authenticates.
+ */
+export type CredentialType = 'pat' | 'oauth' | 'cookie' | 'api_key';
 
 /**
  * Connection status values.
  */
-export type ConnectionStatus = 'active' | 'error' | 'disconnected';
+export type ConnectionStatus = 'active' | 'error' | 'credential_expired' | 'disconnected';
 
 /**
  * Digest type options.

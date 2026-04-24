@@ -22,6 +22,9 @@ describe('SyncScheduler', () => {
   };
 
   beforeEach(() => {
+    // Fix jitter to 1.0 so test assertions use exact values
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
     mockTx = {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),

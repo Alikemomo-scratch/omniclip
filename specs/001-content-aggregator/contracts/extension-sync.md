@@ -1,4 +1,9 @@
-# Extension ↔ Backend Sync Protocol
+# Extension ↔ Backend Sync Protocol (DEPRECATED)
+
+> ⚠️ **DEPRECATED (v3)**: The browser extension sync endpoint is deprecated as of v3.
+> All platforms now use server-side API sync. This document is retained for reference only.
+> The extension sync endpoint (`POST /api/v1/sync/extension`) remains functional but
+> new connections should use `connection_type: 'api'`.
 
 **Feature**: 001-content-aggregator
 **Date**: 2026-03-10

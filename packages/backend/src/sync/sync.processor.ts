@@ -44,7 +44,7 @@ export class SyncProcessor extends WorkerHost {
 
     // 2. Get connector from registry
     const connector = this.connectorRegistry.get(
-      platform as 'github' | 'youtube' | 'twitter' | 'xiaohongshu',
+      platform as 'github' | 'youtube' | 'twitter',
     );
 
     // 3. Build PlatformConnectionData for the connector
@@ -61,7 +61,9 @@ export class SyncProcessor extends WorkerHost {
 
     try {
       // 4. Fetch content from platform
-      const fetchResult = await connector.fetchContent(connData, connection.lastSyncAt);
+      const intervalMs = (connection.syncIntervalMinutes ?? 60) * 60 * 1000;
+      const since = new Date(Date.now() - intervalMs);
+      const fetchResult = await connector.fetchContent(connData, since);
 
       // 5. Map connector items to ContentService input format
       const contentInputs: ContentItemInput[] = fetchResult.items.map((item) => ({
@@ -132,9 +134,15 @@ export class SyncProcessor extends WorkerHost {
 
     if (error instanceof ConnectorError) {
       if (error.code === 'AUTH_EXPIRED' || error.code === 'AUTH_REVOKED') {
-        // Mark connection as error — user action needed, don't retry
         this.logger.warn(`Connection ${connectionId} auth error: ${error.code} — ${errorMessage}`);
-        await this.recordFailure(userId, connectionId, platform, errorMessage, startedAt, 'error');
+        await this.recordFailure(
+          userId,
+          connectionId,
+          platform,
+          errorMessage,
+          startedAt,
+          'credential_expired',
+        );
         return; // Don't re-throw — BullMQ won't retry
       }
 

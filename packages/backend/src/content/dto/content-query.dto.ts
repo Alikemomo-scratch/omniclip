@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsInt, Min, Max, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, IsDateString, IsBooleanString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ContentQueryDto {
@@ -34,4 +34,8 @@ export class ContentQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  archived?: string;
 }

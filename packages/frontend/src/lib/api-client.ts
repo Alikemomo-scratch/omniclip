@@ -41,12 +41,14 @@ export interface ApiError {
 
 class ApiClient {
   private baseUrl: string;
+  /** Shared promise to coalesce concurrent refresh attempts. */
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, options: RequestInit = {}, _isRetry = false): Promise<T> {
     const token = getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -69,8 +71,11 @@ class ApiClient {
         message: 'Request failed',
       }));
 
-      // If 401, clear tokens and redirect to login
-      if (response.status === 401) {
+      if (response.status === 401 && !_isRetry) {
+        const refreshed = await this.tryRefresh();
+        if (refreshed) {
+          return this.request<T>(path, options, true);
+        }
         clearTokens();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -86,6 +91,36 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  private async tryRefresh(): Promise<boolean> {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    if (!this.refreshPromise) {
+      this.refreshPromise = (async () => {
+        try {
+          const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (!res.ok) return false;
+          const data = await res.json();
+          setToken(data.access_token);
+          setRefreshToken(data.refresh_token);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+    }
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
   }
 
   get<T>(path: string): Promise<T> {
@@ -262,6 +297,7 @@ export interface ContentQuery {
   from?: string;
   to?: string;
   search?: string;
+  archived?: boolean;
 }
 
 export const contentApi = {
@@ -278,6 +314,18 @@ export const contentApi = {
 
   getById(id: string): Promise<ContentItem> {
     return apiClient.get(`/content/${id}`);
+  },
+
+  archive(id: string): Promise<void> {
+    return apiClient.patch(`/content/${id}/archive`);
+  },
+
+  unarchive(id: string): Promise<void> {
+    return apiClient.patch(`/content/${id}/unarchive`);
+  },
+
+  delete(id: string): Promise<void> {
+    return apiClient.delete(`/content/${id}`);
   },
 };
 
@@ -377,7 +425,7 @@ export interface GenerateDigestResponse {
 }
 
 export const digestsApi = {
-  list(query: { page?: number; limit?: number; type?: string } = {}): Promise<DigestsResponse> {
+  list(query: { page?: number; limit?: number; type?: string; archived?: boolean } = {}): Promise<DigestsResponse> {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== '') {
@@ -394,5 +442,17 @@ export const digestsApi = {
 
   generate(data: GenerateDigestRequest): Promise<GenerateDigestResponse> {
     return apiClient.post('/digests/generate', data);
+  },
+
+  archive(id: string): Promise<void> {
+    return apiClient.patch(`/digests/${id}/archive`);
+  },
+
+  unarchive(id: string): Promise<void> {
+    return apiClient.patch(`/digests/${id}/unarchive`);
+  },
+
+  delete(id: string): Promise<void> {
+    return apiClient.delete(`/digests/${id}`);
   },
 };

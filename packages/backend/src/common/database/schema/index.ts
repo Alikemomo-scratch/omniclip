@@ -86,6 +86,7 @@ export const contentItems = pgTable(
     publishedAt: timestamp('published_at', { withTimezone: true }).notNull(),
     collectedAt: timestamp('collected_at', { withTimezone: true }).notNull().defaultNow(),
     aiSummary: text('ai_summary'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -115,6 +116,7 @@ export const digests = pgTable(
     itemCount: integer('item_count').notNull(),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     generatedAt: timestamp('generated_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

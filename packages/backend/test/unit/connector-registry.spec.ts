@@ -11,7 +11,6 @@ import type {
   PlatformConnectionData,
 } from '@omniclip/shared';
 import { GitHubConnector } from '../../src/connectors/github/github.connector';
-import { XiaohongshuConnector } from '../../src/connectors/xiaohongshu/xiaohongshu.connector';
 import { TwitterConnector } from '../../src/connectors/twitter/twitter.connector';
 import { YouTubeConnector } from '../../src/connectors/youtube/youtube.connector';
 
@@ -67,13 +66,9 @@ describe('ConnectorRegistry (Extensibility)', () => {
   });
 
   describe('Real Connectors Architecture Validation', () => {
-    it('should verify all 4 real connectors implement PlatformConnector interface', () => {
-      // Create instances of real connectors (with mocked dependencies if any, but since we are just checking types/signatures, we can cast them or instantiate if they have no complex constructor)
-      // Actually, we can just test if the classes implement the required methods
-
+    it('should verify all 3 real connectors implement PlatformConnector interface', () => {
       const connectors = [
         GitHubConnector,
-        XiaohongshuConnector,
         TwitterConnector,
         YouTubeConnector,
       ];

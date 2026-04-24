@@ -10,10 +10,11 @@
 
 The connector interface enables extensibility — adding a new platform requires only implementing this interface and registering the connector, without modifying core application logic.
 
-There are two connector categories:
+There is only one connector category in v3:
 
-- **API Connector** (server-side): Runs on the backend, fetches content via official platform APIs
-- **Extension Connector** (client-side): Runs in the Chrome extension, intercepts platform API responses
+- **API Connector** (server-side): Runs on the backend, fetches content via official or reverse-engineered platform APIs.
+
+_Note: Extension-based connectors are deprecated as of v3._
 
 Both categories implement the same interface but differ in execution context.
 
@@ -29,13 +30,12 @@ interface PlatformConnector {
   /** Unique platform identifier */
   readonly platform: PlatformId;
 
-  /** Whether this connector runs server-side or in the extension */
-  readonly type: 'api' | 'extension';
+  /** Whether this connector runs server-side or in the extension (Extension deprecated v3) */
+  readonly type: 'api';
 
   /**
    * Validate that the connection credentials/configuration are valid.
-   * For API connectors: verify API token works.
-   * For extension connectors: verify the extension can reach the platform.
+   * For API connectors: verify API token/cookies work.
    *
    * @returns Health check result with status and diagnostic info
    */
@@ -54,7 +54,6 @@ interface PlatformConnector {
 
   /**
    * Parse a raw platform-specific response into normalized content items.
-   * Used by extension connectors to parse intercepted API responses.
    *
    * @param rawData - Raw API response data from the platform
    * @returns Array of normalized content items
@@ -63,57 +62,17 @@ interface PlatformConnector {
 }
 
 /**
- * Platform identifiers — extend this union type when adding new platforms.
+ * Platform identifiers.
  */
-type PlatformId = 'github' | 'youtube' | 'twitter' | 'xiaohongshu';
+type PlatformId = 'github' | 'youtube' | 'twitter';
 
 /**
- * Health check result returned by the connector.
+ * Authentication data formats for different platforms.
  */
-interface HealthCheckResult {
-  status: 'healthy' | 'unhealthy' | 'degraded';
-  message: string;
-  details?: {
-    rate_limit_remaining?: number;
-    rate_limit_reset?: Date;
-    api_version?: string;
-  };
-}
-
-/**
- * Result of a content fetch operation.
- */
-interface FetchResult {
-  items: ContentItemInput[];
-  /** Whether there are more items available (pagination) */
-  has_more: boolean;
-  /** Cursor/token for fetching next page (if applicable) */
-  next_cursor?: string;
-  /** Metadata about the fetch operation */
-  metadata: {
-    api_calls_made: number;
-    rate_limit_remaining?: number;
-  };
-}
-
-/**
- * Normalized content item input (before database insertion).
- * Maps to content_items table schema.
- */
-interface ContentItemInput {
-  external_id: string;
-  content_type: ContentType;
-  title: string | null;
-  body: string | null;
-  media_urls: string[];
-  metadata: Record<string, unknown>;
-  author_name: string | null;
-  author_url: string | null;
-  original_url: string;
-  published_at: Date;
-}
-
-type ContentType = 'post' | 'video' | 'commit' | 'release' | 'issue' | 'tweet';
+type AuthData = 
+  | { personal_access_token: string } // GitHub
+  | { access_token: string, refresh_token: string } // YouTube (OAuth)
+  | { api_key?: string, auth_token?: string, ct0?: string }; // Twitter (rettiwt-api)
 ```
 
 ---
@@ -203,7 +162,13 @@ type ConnectorErrorCode =
 
 The sync module handles these errors uniformly:
 
-- `AUTH_EXPIRED` → mark connection as 'error', notify user (FR-013)
-- `RATE_LIMITED` → re-queue job with delay (exponential backoff)
+- `AUTH_EXPIRED` → mark connection as 'credential_expired', notify user
+- `AUTH_REVOKED` → mark connection as 'credential_expired', notify user
+- `RATE_LIMITED` → re-queue job with delay (exponential backoff with jitter)
 - `PARSE_ERROR` → log detailed error for debugging, notify user (FR-016)
 - `ACCOUNT_SUSPENDED` → mark connection as 'error', do NOT retry (Edge Case #5)
+
+### Twitter Sync Constraints
+- **Minimum Interval**: 30 minutes
+- **Jitter**: ±20% added to schedule to avoid pattern detection
+- **Auth Strategy**: rettiwt-api with session cookies or API key

@@ -46,37 +46,19 @@
 
 ---
 
-## 3. Chrome Extension Architecture
+## 3. Chrome Extension Architecture (ARCHIVED v3)
 
-**Decision**: Manifest V3, "Content-Bridge-Worker" three-layer pattern
+**Status**: Archived in v3. All platforms migrated to server-side API connectors. Documentation retained for historical context.
 
-**Rationale**:
+**Rationale (Pre-v3)**:
+- **MAIN world content script**: Intercepts platform's `fetch`/`XHR` API responses.
+- **ISOLATED world bridge**: Relays intercepted data from MAIN world to service worker.
+- **Service Worker (background)**: Schedules sync via `chrome.alarms`.
 
-- **MAIN world content script**: Intercepts platform's `fetch`/`XHR` API responses (the data stream the platform already loads). This is the "zero footprint" approach — no DOM scanning, no fake clicks, no additional requests. Minimizes anti-bot detection surface (aligns with FR-022).
-- **ISOLATED world bridge**: Relays intercepted data from MAIN world to service worker. Required because MAIN world scripts cannot directly access `chrome.*` APIs.
-- **Service Worker (background)**: Schedules sync via `chrome.alarms` (survives MV3's 30s idle timeout), buffers data in `chrome.storage.local`, and syncs to cloud API over HTTPS.
-
-**Key constraints (Manifest V3)**:
-
-- Service worker terminates after 30s of inactivity — all scheduling must use `chrome.alarms`
-- No persistent background page — state must be stored in `chrome.storage.local`
-- `host_permissions` must be explicit per-domain (no `<all_urls>` — FR-019)
-- Content scripts must NOT inject into login/payment pages (FR-020)
-
-**Reference implementation**: xTap (open-source) — demonstrates "zero footprint" interception of X/Twitter's GraphQL API responses.
-
-**Anti-detection measures**:
-
-- Passive read-only: no DOM mutation, no simulated interactions (FR-022)
-- Patch `Function.prototype.toString` to return `[native code]` for interceptor functions
-- Match natural browsing frequency patterns for sync intervals
-- No automated scrolling or pagination — only capture what the user naturally loads
-
-**Alternatives considered**:
-
-- **DOM scraping**: Fragile (breaks when platform changes HTML structure), detectable (MutationObserver triggers), and slower. Rejected in favor of API response interception.
-- **Scrapling (Python library)**: Good anti-detection for server-side scraping, but cannot crack Xiaohongshu's device ID binding + `x-s` signature algorithm. Cannot replace browser extension.
-- **Crawl4AI**: Useful for server-side crawling of public pages, but cannot access authenticated feeds. Does not solve the core problem.
+**Reason for Removal**:
+- User experience: Required user to keep browser tabs open for sync.
+- Maintenance: Heavy dependence on platform DOM/API stability.
+- V3 Migration: Successful implementation of server-side `rettiwt-api` for Twitter and removal of XHS simplified architecture to 3 packages.
 
 ---
 
@@ -175,19 +157,18 @@
 - **Data**: Subscribed channels, new videos (activities API), video metadata
 - **Risk**: Low — quota limits require careful management but sufficient for MVP
 
-### X/Twitter (Extension-based)
+### X/Twitter (Server-side, rettiwt-api)
 
-- **API**: Official API costs $200/month (Basic tier). Unstable free alternatives.
-- **Approach**: Browser extension intercepts GraphQL API responses (`/graphql/` endpoints) from the user's authenticated session
-- **Data**: Timeline tweets, followed users' posts, media
-- **Risk**: Medium — Twitter frequently changes GraphQL schema. Extension must handle schema changes gracefully (FR-016).
+- **API**: rettiwt-api (npm), provides access to GraphQL endpoints
+- **Auth**: `auth_token` + `ct0` cookies OR API key
+- **Data**: Following timeline, user posts, media
+- **Risk**: Low/Medium — Avoids official $200/mo cost. Node.js 22 required for rettiwt-api v7.
+- **V3 Decision**: Migrated from extension-based to server-side via `rettiwt-api` for better reliability and background sync without requiring the user's browser to be open.
 
-### Xiaohongshu (Extension-based)
+### Xiaohongshu (DEPRECATED/REMOVED)
 
-- **API**: No official API. Server-side scraping blocked by device ID binding + `x-s` signature algorithm
-- **Approach**: Browser extension intercepts API responses (`/api/sns/web/v1/feed`) from the user's authenticated session
-- **Data**: Followed creators' posts (text, images, engagement metrics)
-- **Risk**: High — most aggressive anti-scraping. Extension must be purely passive. Any DOM mutation or additional requests will trigger detection.
+- **V3 Decision**: Removed XHS support entirely.
+- **Rationale**: Extreme anti-scraping complexity (XYW_ signature format, mandatory device ID binding, TLS/JA3 fingerprinting). Node.js ecosystem lacks robust TLS spoofing for XHS, making server-side maintenance unsustainable for MVP. Extension-based approach was also deemed too intrusive for a "zero-footprint" philosophy.
 
 ---
 
@@ -197,7 +178,6 @@
 | --------------------- | ------------------------ | ------------------------------------------------------ |
 | Unit (backend)        | Vitest                   | Service logic, connector parsing, digest generation    |
 | Unit (frontend)       | Vitest + Testing Library | Component rendering, hook behavior                     |
-| Unit (extension)      | Vitest + jest-chrome     | Content script logic, message passing                  |
 | Integration (backend) | Vitest + Testcontainers  | API endpoints with real PostgreSQL + Redis             |
 | E2E (frontend)        | Playwright               | Critical user journeys (signup, connect, feed, digest) |
 | Contract (API)        | Vitest                   | Request/response schema validation against contracts   |

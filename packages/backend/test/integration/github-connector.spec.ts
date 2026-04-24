@@ -85,8 +85,7 @@ describe('GitHub Connector (Integration)', () => {
   });
 
   describe('fetchContent', () => {
-    it('should fetch starred repos and events, returning normalized content items', async () => {
-      // Mock starred repos endpoint
+    it('should fetch starred repo releases, returning normalized content items', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -108,7 +107,6 @@ describe('GitHub Connector (Integration)', () => {
         headers: new Map([['x-ratelimit-remaining', '4998']]),
       });
 
-      // Mock release endpoint for the starred repo
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -124,82 +122,23 @@ describe('GitHub Connector (Integration)', () => {
         headers: new Map([['x-ratelimit-remaining', '4997']]),
       });
 
-      // Mock events endpoint
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => [
-          {
-            id: 'evt-1',
-            type: 'ReleaseEvent',
-            repo: { name: 'owner/repo' },
-            actor: { login: 'releaser', url: 'https://api.github.com/users/releaser' },
-            payload: {
-              action: 'published',
-              release: {
-                tag_name: 'v1.0.0',
-                name: 'Release 1.0',
-                body: 'First release!',
-                html_url: 'https://github.com/owner/repo/releases/tag/v1.0.0',
-                published_at: '2024-01-16T12:00:00Z',
-              },
-            },
-            created_at: '2024-01-16T12:00:00Z',
-          },
-          {
-            id: 'evt-2',
-            type: 'WatchEvent',
-            repo: { name: 'owner/issues-repo' },
-            actor: { login: 'issuer', url: 'https://api.github.com/users/issuer' },
-            payload: {
-              action: 'started',
-            },
-            created_at: '2024-01-17T08:00:00Z',
-          },
-        ],
-        headers: new Map([['x-ratelimit-remaining', '4996']]),
-      });
-
       const result = await connector.fetchContent(createMockConnection(), null);
 
-      expect(result.items.length).toBeGreaterThanOrEqual(2);
+      expect(result.items).toHaveLength(1);
 
-      // Check starred repo item (connector maps starred repos as content_type: 'release' with source: 'starred_repo')
-      const starredItem = result.items.find(
-        (i) => i.metadata && (i.metadata as Record<string, unknown>).source === 'starred_repo',
-      );
-      expect(starredItem).toBeDefined();
-      expect(starredItem!.external_id).toContain('888');
-      expect(starredItem!.content_type).toBe('release');
-      expect(starredItem!.original_url).toContain('releases');
-
-      // Check release event item
-      const releaseItem = result.items.find((i) => i.external_id === 'github-event-evt-1');
-      expect(releaseItem).toBeDefined();
-      expect(releaseItem!.content_type).toBe('release');
-      expect(releaseItem!.original_url).toContain('releases');
-
-      // Check watch event item
-      const watchItem = result.items.find((i) => i.external_id === 'github-event-evt-2');
-      expect(watchItem).toBeDefined();
-      expect(watchItem!.title).toContain('Starred');
+      const starredItem = result.items[0];
+      expect(starredItem.external_id).toContain('888');
+      expect(starredItem.content_type).toBe('release');
+      expect(starredItem.original_url).toContain('releases');
+      expect((starredItem.metadata as Record<string, unknown>).source).toBe('starred_repo');
     });
 
     it('should handle empty responses gracefully', async () => {
-      // Empty starred repos
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => [],
         headers: new Map([['x-ratelimit-remaining', '4999']]),
-      });
-
-      // Empty events
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => [],
-        headers: new Map([['x-ratelimit-remaining', '4998']]),
       });
 
       const result = await connector.fetchContent(createMockConnection(), null);

@@ -35,7 +35,7 @@ describe('Extension Sync Endpoint (Integration)', () => {
   async function setupUserWithExtensionConnection(
     email: string,
     name: string,
-    platform: 'xiaohongshu' | 'twitter' = 'xiaohongshu',
+    platform: 'twitter' = 'twitter',
   ) {
     const regRes = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
@@ -72,19 +72,19 @@ describe('Extension Sync Endpoint (Integration)', () => {
   }
 
   /**
-   * Build a sample XHS content item.
+   * Build a sample Twitter content item.
    */
-  function buildXhsItem(id: string, overrides: Record<string, unknown> = {}) {
+  function buildItem(id: string, overrides: Record<string, unknown> = {}) {
     return {
-      external_id: `note-${id}`,
-      content_type: 'post',
-      title: `Test Post ${id}`,
-      body: `Body of post ${id}`,
+      external_id: `tweet-${id}`,
+      content_type: 'tweet',
+      title: `Test Tweet ${id}`,
+      body: `Body of tweet ${id}`,
       media_urls: [`https://example.com/img-${id}.jpg`],
-      metadata: { likes: 100, collects: 50 },
+      metadata: { likes: 100, retweets: 50 },
       author_name: `Author ${id}`,
-      author_url: `https://www.xiaohongshu.com/user/profile/${id}`,
-      original_url: `https://www.xiaohongshu.com/explore/${id}`,
+      author_url: `https://twitter.com/user/${id}`,
+      original_url: `https://twitter.com/user/status/${id}`,
       published_at: new Date().toISOString(),
       ...overrides,
     };
@@ -124,9 +124,9 @@ describe('Extension Sync Endpoint (Integration)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .send({
-        platform: 'xiaohongshu',
+        platform: 'twitter',
         connection_id: randomUUID(),
-        items: [buildXhsItem('1')],
+        items: [buildItem('1')],
       });
 
     expect(res.status).toBe(401);
@@ -138,24 +138,9 @@ describe('Extension Sync Endpoint (Integration)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', randomUUID(), [buildXhsItem('1')]));
+      .send(buildSyncPayload('twitter', randomUUID(), [buildItem('1')]));
 
     expect(res.status).toBe(404);
-  });
-
-  it('should reject if platform in payload does not match connection platform', async () => {
-    const { token, connectionId } = await setupUserWithExtensionConnection(
-      'user2@ext.com',
-      'User2',
-      'xiaohongshu',
-    );
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/sync/extension')
-      .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('twitter', connectionId, [buildXhsItem('1')]));
-
-    expect(res.status).toBe(403);
   });
 
   // ── Successful Sync ──
@@ -166,12 +151,12 @@ describe('Extension Sync Endpoint (Integration)', () => {
       'User3',
     );
 
-    const items = [buildXhsItem('a'), buildXhsItem('b'), buildXhsItem('c')];
+    const items = [buildItem('a'), buildItem('b'), buildItem('c')];
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', connectionId, items));
+      .send(buildSyncPayload('twitter', connectionId, items));
 
     expect(res.status).toBe(200);
     expect(res.body.accepted).toBe(3);
@@ -185,24 +170,24 @@ describe('Extension Sync Endpoint (Integration)', () => {
     );
 
     // First sync
-    const items = [buildXhsItem('dup1'), buildXhsItem('dup2')];
+    const items = [buildItem('dup1'), buildItem('dup2')];
     await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', connectionId, items))
+      .send(buildSyncPayload('twitter', connectionId, items))
       .expect(200);
 
     // Second sync with same external_ids but updated content
     const updatedItems = [
-      buildXhsItem('dup1', { title: 'Updated Title 1' }),
-      buildXhsItem('dup2', { title: 'Updated Title 2' }),
-      buildXhsItem('dup3'),
+      buildItem('dup1', { title: 'Updated Title 1' }),
+      buildItem('dup2', { title: 'Updated Title 2' }),
+      buildItem('dup3'),
     ];
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', connectionId, updatedItems))
+      .send(buildSyncPayload('twitter', connectionId, updatedItems))
       .expect(200);
 
     expect(res.body.accepted).toBe(3); // All 3 processed (2 updated + 1 new)
@@ -231,24 +216,24 @@ describe('Extension Sync Endpoint (Integration)', () => {
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
       .send(
-        buildSyncPayload('xiaohongshu', connectionId, [
-          buildXhsItem('feed1', {
-            title: 'Feed Test Post',
-            author_name: 'XHS Creator',
+        buildSyncPayload('twitter', connectionId, [
+          buildItem('feed1', {
+            title: 'Feed Test Tweet',
+            author_name: 'Twitter Creator',
           }),
         ]),
       )
       .expect(200);
 
     const feedRes = await request(app.getHttpServer())
-      .get('/api/v1/content?platform=xiaohongshu')
+      .get('/api/v1/content?platform=twitter')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(feedRes.body.items).toHaveLength(1);
-    expect(feedRes.body.items[0].title).toBe('Feed Test Post');
-    expect(feedRes.body.items[0].author_name).toBe('XHS Creator');
-    expect(feedRes.body.items[0].platform).toBe('xiaohongshu');
+    expect(feedRes.body.items[0].title).toBe('Feed Test Tweet');
+    expect(feedRes.body.items[0].author_name).toBe('Twitter Creator');
+    expect(feedRes.body.items[0].platform).toBe('twitter');
   });
 
   // ── Partial Success (207) ──
@@ -260,11 +245,11 @@ describe('Extension Sync Endpoint (Integration)', () => {
     );
 
     const items = [
-      buildXhsItem('valid1'),
+      buildItem('valid1'),
       // Invalid item: missing original_url
       {
-        external_id: 'note-invalid1',
-        content_type: 'post',
+        external_id: 'tweet-invalid1',
+        content_type: 'tweet',
         title: 'Bad Item',
         body: 'No URL',
         original_url: '', // empty = falsy
@@ -274,12 +259,12 @@ describe('Extension Sync Endpoint (Integration)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', connectionId, items));
+      .send(buildSyncPayload('twitter', connectionId, items));
 
     expect(res.status).toBe(207);
     expect(res.body.accepted).toBe(1);
     expect(res.body.errors).toHaveLength(1);
-    expect(res.body.errors[0].external_id).toBe('note-invalid1');
+    expect(res.body.errors[0].external_id).toBe('tweet-invalid1');
     expect(res.body.errors[0].error).toBe('validation_failed');
   });
 
@@ -294,8 +279,8 @@ describe('Extension Sync Endpoint (Integration)', () => {
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${userA.token}`)
       .send(
-        buildSyncPayload('xiaohongshu', userA.connectionId, [
-          buildXhsItem('a-private', { title: 'Private to A' }),
+        buildSyncPayload('twitter', userA.connectionId, [
+          buildItem('a-private', { title: 'Private to A' }),
         ]),
       )
       .expect(200);
@@ -305,8 +290,8 @@ describe('Extension Sync Endpoint (Integration)', () => {
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${userB.token}`)
       .send(
-        buildSyncPayload('xiaohongshu', userB.connectionId, [
-          buildXhsItem('b-private', { title: 'Private to B' }),
+        buildSyncPayload('twitter', userB.connectionId, [
+          buildItem('b-private', { title: 'Private to B' }),
         ]),
       )
       .expect(200);
@@ -340,43 +325,10 @@ describe('Extension Sync Endpoint (Integration)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${userA.token}`)
-      .send(buildSyncPayload('xiaohongshu', userB.connectionId, [buildXhsItem('cross-test')]));
+      .send(buildSyncPayload('twitter', userB.connectionId, [buildItem('cross-test')]));
 
     // Should get 404 because RLS prevents user A from seeing user B's connection
     expect(res.status).toBe(404);
-  });
-
-  // ── Twitter platform ──
-
-  it('should accept Twitter content items', async () => {
-    const { token, connectionId } = await setupUserWithExtensionConnection(
-      'twitter@ext.com',
-      'TwitterUser',
-      'twitter',
-    );
-
-    const twitterItems = [
-      {
-        external_id: 'tweet-123',
-        content_type: 'tweet',
-        title: null,
-        body: 'Just tweeted something cool! #tech',
-        media_urls: [],
-        metadata: { likes: 500, retweets: 100 },
-        author_name: 'TechUser',
-        author_url: 'https://twitter.com/techuser',
-        original_url: 'https://twitter.com/techuser/status/123',
-        published_at: new Date().toISOString(),
-      },
-    ];
-
-    const res = await request(app.getHttpServer())
-      .post('/api/v1/sync/extension')
-      .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('twitter', connectionId, twitterItems))
-      .expect(200);
-
-    expect(res.body.accepted).toBe(1);
   });
 
   // ── Validation ──
@@ -390,7 +342,7 @@ describe('Extension Sync Endpoint (Integration)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sync/extension')
       .set('Authorization', `Bearer ${token}`)
-      .send(buildSyncPayload('xiaohongshu', connectionId, []));
+      .send(buildSyncPayload('twitter', connectionId, []));
 
     // ValidationPipe should reject empty array (ArrayMinSize(1))
     expect(res.status).toBe(400);

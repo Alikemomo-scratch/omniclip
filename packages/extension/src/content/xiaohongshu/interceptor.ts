@@ -35,36 +35,29 @@ function showToast(message: string, isError = false) {
     return;
   }
 
-  // Create toast element - no removal, just fade out with CSS
   const toast = document.createElement('div');
   toast.textContent = message;
-  // Use CSS animation only, no setTimeout removal
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: ${isError ? '#ff4d4f' : '#00b96b'};
-    color: white;
-    padding: 16px 24px;
-    border-radius: 8px;
-    z-index: 2147483647;
-    font-family: sans-serif;
-    font-size: 16px;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    opacity: 1;
-    transition: opacity 0.5s ease-in 5s;
-  `;
+  // Use inline styles only, no animations, no removal
+  toast.style.position = 'fixed';
+  toast.style.bottom = '20px';
+  toast.style.right = '20px';
+  toast.style.background = isError ? '#ff4d4f' : '#00b96b';
+  toast.style.color = 'white';
+  toast.style.padding = '16px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.zIndex = '2147483647';
+  toast.style.fontFamily = 'sans-serif';
+  toast.style.fontSize = '16px';
+  toast.style.fontWeight = 'bold';
+  toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+  toast.style.opacity = '0.9';
 
   document.body.appendChild(toast);
 
-  // Use a simple delayed opacity change - no removal
-  const fadeOut = function () {
-    toast.style.opacity = '0';
-  };
-
-  // Call via setTimeout with function reference
-  window.setTimeout(fadeOut, 5000);
+  // Simple opacity fade after 5 seconds, no removal
+  setTimeout(function () {
+    toast.style.opacity = '0.2';
+  }, 5000);
 }
 
 function postToBridge(items: unknown[]): void {

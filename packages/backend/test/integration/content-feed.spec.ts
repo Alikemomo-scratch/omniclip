@@ -195,7 +195,7 @@ describe('Content Feed (Integration)', () => {
     const conn2 = await request(app.getHttpServer())
       .post('/api/v1/connections')
       .set('Authorization', `Bearer ${token}`)
-      .send({ platform: 'twitter', connection_type: 'extension' });
+      .send({ platform: 'twitter', connection_type: 'api' });
 
     await contentService.upsertMany(userId, [
       {

@@ -1,7 +1,7 @@
 /**
  * Supported platform identifiers as a constant array.
  */
-export const PLATFORMS = ['github', 'youtube', 'twitter', 'xiaohongshu'] as const;
+export const PLATFORMS = ['github', 'youtube', 'twitter'] as const;
 
 /**
  * Supported content types.

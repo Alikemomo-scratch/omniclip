@@ -199,7 +199,7 @@ describe('Connections (Integration)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/connections')
       .set('Authorization', `Bearer ${tokenB}`)
-      .send({ platform: 'twitter', connection_type: 'extension' })
+      .send({ platform: 'twitter', connection_type: 'api' })
       .expect(201);
 
     // User A should only see their GitHub connection

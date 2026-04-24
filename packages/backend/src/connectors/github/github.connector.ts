@@ -151,36 +151,6 @@ export class GitHubConnector implements PlatformConnector {
       );
     }
 
-    // 2. Fetch user events (releases, pushes, issues)
-    try {
-      const response = await this.githubFetch('/users/current/received_events?per_page=100', token);
-      apiCalls++;
-
-      this.handleErrorResponse(response);
-
-      const eventsData = await response.json();
-      rateLimitRemaining = this.getRateLimitRemaining(response);
-
-      const parsedEvents = this.parseResponse({
-        type: 'events',
-        data: eventsData,
-      });
-
-      // Filter by since
-      for (const item of parsedEvents) {
-        if (since && item.published_at < since) continue;
-        allItems.push(item);
-      }
-    } catch (error) {
-      if (error instanceof ConnectorError) throw error;
-      throw new ConnectorError(
-        'github',
-        'NETWORK_ERROR',
-        `Failed to fetch events: ${(error as Error).message}`,
-        true,
-      );
-    }
-
     return {
       items: allItems,
       has_more: false, // single page for now
@@ -193,134 +163,14 @@ export class GitHubConnector implements PlatformConnector {
 
   /**
    * Parse raw GitHub API responses into normalized ContentItemInputs.
-   * Supports events data format.
+   * Currently unused — starred repo releases are parsed inline in fetchContent.
+   * Retained to satisfy PlatformConnector interface.
    */
-  parseResponse(rawData: unknown): ContentItemInput[] {
-    if (!rawData || typeof rawData !== 'object') return [];
-
-    const data = rawData as { type?: string; data?: unknown[] };
-
-    if (data.type === 'events' && Array.isArray(data.data)) {
-      return this.parseEvents(data.data);
-    }
-
+  parseResponse(_rawData: unknown): ContentItemInput[] {
     return [];
   }
 
   // --- Private helpers ---
-
-  private parseEvents(events: unknown[]): ContentItemInput[] {
-    const items: ContentItemInput[] = [];
-
-    for (const raw of events) {
-      const event = raw as {
-        id: string;
-        type: string;
-        actor: { login: string; url: string };
-        repo: { name: string; url: string };
-        payload: Record<string, unknown>;
-        created_at: string;
-      };
-
-      switch (event.type) {
-        case 'ReleaseEvent': {
-          const release = event.payload.release as {
-            id: number;
-            tag_name: string;
-            name: string | null;
-            body: string | null;
-            html_url: string;
-            published_at: string;
-          };
-          items.push({
-            external_id: `github-event-${event.id}`,
-            content_type: 'release',
-            title: release.name || `Release ${release.tag_name}`,
-            body: release.body || null,
-            media_urls: [],
-            metadata: {
-              tag_name: release.tag_name,
-              repo: event.repo.name,
-              event_type: 'ReleaseEvent',
-            },
-            author_name: event.actor.login,
-            author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: release.html_url,
-            published_at: new Date(release.published_at || event.created_at),
-          });
-          break;
-        }
-
-        case 'CreateEvent': {
-          if (event.payload.ref_type !== 'repository') break;
-          items.push({
-            external_id: `github-event-${event.id}`,
-            content_type: 'release',
-            title: `New Repository: ${event.repo.name}`,
-            body: (event.payload.description as string) || null,
-            media_urls: [],
-            metadata: {
-              repo: event.repo.name,
-              event_type: 'CreateEvent',
-            },
-            author_name: event.actor.login,
-            author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: `https://github.com/${event.repo.name}`,
-            published_at: new Date(event.created_at),
-          });
-          break;
-        }
-
-        case 'PublicEvent': {
-          items.push({
-            external_id: `github-event-${event.id}`,
-            content_type: 'release',
-            title: `Open Sourced: ${event.repo.name}`,
-            body: null,
-            media_urls: [],
-            metadata: {
-              repo: event.repo.name,
-              event_type: 'PublicEvent',
-            },
-            author_name: event.actor.login,
-            author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: `https://github.com/${event.repo.name}`,
-            published_at: new Date(event.created_at),
-          });
-          break;
-        }
-
-        case 'WatchEvent': {
-          const action = event.payload.action as string;
-          if (action !== 'started') break;
-
-          items.push({
-            external_id: `github-event-${event.id}`,
-            content_type: 'release',
-            title: `Starred: ${event.repo.name}`,
-            body: null,
-            media_urls: [],
-            metadata: {
-              repo: event.repo.name,
-              action,
-              event_type: 'WatchEvent',
-            },
-            author_name: event.actor.login,
-            author_url: event.actor.url.replace('api.github.com/users', 'github.com'),
-            original_url: `https://github.com/${event.repo.name}`,
-            published_at: new Date(event.created_at),
-          });
-          break;
-        }
-
-        // Skip non-content events (PushEvent, IssuesEvent, etc.)
-        default:
-          break;
-      }
-    }
-
-    return items;
-  }
 
   private extractToken(connection: PlatformConnectionData): string | null {
     if (!connection.auth_data) return null;

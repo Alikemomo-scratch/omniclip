@@ -2,6 +2,9 @@
   "name": "@omniclip/backend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.21.0"
+  },
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
@@ -41,6 +44,7 @@
     "passport-jwt": "^4.0.1",
     "pg": "^8.13.0",
     "reflect-metadata": "^0.2.0",
+    "rettiwt-api": "^7.0.1",
     "rxjs": "^7.8.0"
   },
   "devDependencies": {

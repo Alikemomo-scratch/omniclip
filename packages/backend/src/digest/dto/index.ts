@@ -1,4 +1,13 @@
-import { IsString, IsOptional, IsIn, IsDateString, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsIn,
+  IsDateString,
+  IsInt,
+  Min,
+  Max,
+  IsBooleanString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class GenerateDigestDto {
@@ -31,4 +40,8 @@ export class DigestQueryDto {
   @IsString()
   @IsIn(['daily', 'weekly'])
   type?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  archived?: string;
 }

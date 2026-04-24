@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   forwardRef,
 } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
@@ -13,6 +14,7 @@ import { platformConnections } from '../common/database/schema';
 import { ConnectorRegistry } from '../connectors/connector.registry';
 import { SyncScheduler } from '../sync/sync.scheduler';
 import type { CreateConnectionDto, UpdateConnectionDto } from './dto';
+import type { PlatformConnectionData } from '@omniclip/shared';
 
 import { encryptAuthData, decryptAuthData } from '../common/utils/encryption.util';
 
@@ -62,6 +64,26 @@ export class ConnectionsService {
 
       if (existing.length > 0) {
         throw new ConflictException(`Platform ${dto.platform} is already connected`);
+      }
+
+      if (dto.platform === 'twitter' && dto.auth_data) {
+        const connector = this.connectorRegistry.get('twitter');
+        const tempConnectionData: PlatformConnectionData = {
+          id: 'temp-validation',
+          user_id: userId,
+          platform: 'twitter',
+          connection_type: 'api',
+          status: 'active',
+          auth_data: dto.auth_data as Record<string, unknown>,
+          sync_interval_minutes: dto.sync_interval_minutes || 60,
+          last_sync_at: null,
+        };
+        const health = await connector.healthCheck(tempConnectionData);
+        if (health.status === 'unhealthy') {
+          throw new BadRequestException(
+            `Twitter credential validation failed: ${health.message}`,
+          );
+        }
       }
 
       const [connection] = await tx
@@ -217,14 +239,14 @@ export class ConnectionsService {
     const connection = await this.findByIdWithAuth(userId, connectionId);
 
     const connector = this.connectorRegistry.get(
-      connection.platform as 'github' | 'youtube' | 'twitter' | 'xiaohongshu',
+      connection.platform as 'github' | 'youtube' | 'twitter',
     );
 
     return connector.healthCheck({
       id: connection.id,
       user_id: userId,
-      platform: connection.platform as 'github' | 'youtube' | 'twitter' | 'xiaohongshu',
-      connection_type: connection.connectionType as 'api' | 'extension',
+      platform: connection.platform as 'github' | 'youtube' | 'twitter',
+      connection_type: connection.connectionType as 'api' | 'cookie' | 'extension',
       status: connection.status as 'active' | 'error' | 'disconnected',
       auth_data: (connection.authData as Record<string, unknown>) || null,
       sync_interval_minutes: connection.syncIntervalMinutes,

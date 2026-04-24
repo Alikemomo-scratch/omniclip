@@ -73,7 +73,7 @@ export class SyncMetadataDto {
  * POST /api/v1/sync/extension — batch upload from extension.
  */
 export class ExtensionSyncDto {
-  @IsEnum(['twitter', 'xiaohongshu'])
+  @IsEnum(['twitter'])
   platform!: string;
 
   @IsUUID()
@@ -99,7 +99,7 @@ export class HeartbeatDto {
   @IsUUID()
   connection_id!: string;
 
-  @IsEnum(['twitter', 'xiaohongshu'])
+  @IsEnum(['twitter'])
   platform!: string;
 
   @IsEnum(['active', 'error', 'disconnected'])

@@ -129,13 +129,17 @@ Create a new platform connection.
 }
 ```
 
-**Request (Extension-based — Xiaohongshu)**:
+**Request (API-based — Twitter)**:
 
 ```json
 {
-  "platform": "xiaohongshu",
-  "connection_type": "extension",
-  "sync_interval_minutes": 120
+  "platform": "twitter",
+  "connection_type": "api",
+  "auth_data": {
+    "auth_token": "xxxx",
+    "ct0": "xxxx"
+  },
+  "sync_interval_minutes": 60
 }
 ```
 
@@ -144,10 +148,10 @@ Create a new platform connection.
 ```json
 {
   "id": "uuid",
-  "platform": "xiaohongshu",
-  "connection_type": "extension",
+  "platform": "twitter",
+  "connection_type": "api",
   "status": "active",
-  "sync_interval_minutes": 120
+  "sync_interval_minutes": 60
 }
 ```
 
@@ -202,7 +206,7 @@ List content items with pagination and filters.
 |-------|------|---------|-------------|
 | page | integer | 1 | Page number |
 | limit | integer | 20 | Items per page (max 100) |
-| platform | string | all | Filter by platform |
+| platform | string | all | Filter by platform ('github', 'youtube', 'twitter') |
 | content_type | string | all | Filter by type |
 | from | ISO 8601 | - | Start date filter |
 | to | ISO 8601 | - | End date filter |
@@ -414,3 +418,9 @@ All errors follow this format:
 | 429    | Rate limited                         |
 | 500    | Internal server error                |
 | 503    | Service unavailable                  |
+
+**Connection Status Enum**:
+- `active`: Normal functioning
+- `inactive`: Sync paused by user
+- `error`: Unexpected error occurred
+- `credential_expired`: Auth token or session cookies expired, user must re-connect

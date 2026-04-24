@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { eq, and, gte, lte, or, ilike, sql, count } from 'drizzle-orm';
+import { eq, and, gte, lte, or, ilike, sql, count, isNull, isNotNull } from 'drizzle-orm';
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
@@ -67,6 +67,7 @@ export class ContentService {
           published_at: contentItems.publishedAt,
           collected_at: contentItems.collectedAt,
           ai_summary: contentItems.aiSummary,
+          archived_at: contentItems.archivedAt,
         })
         .from(contentItems)
         .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -108,6 +109,7 @@ export class ContentService {
           published_at: contentItems.publishedAt,
           collected_at: contentItems.collectedAt,
           ai_summary: contentItems.aiSummary,
+          archived_at: contentItems.archivedAt,
         })
         .from(contentItems)
         .where(eq(contentItems.id, itemId));
@@ -195,6 +197,63 @@ export class ContentService {
       conditions.push(or(ilike(contentItems.title, pattern), ilike(contentItems.body, pattern)));
     }
 
+    if (query.archived === 'true') {
+      conditions.push(isNotNull(contentItems.archivedAt));
+    } else {
+      conditions.push(isNull(contentItems.archivedAt));
+    }
+
     return conditions;
+  }
+
+  async archive(userId: string, itemId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: contentItems.id })
+        .from(contentItems)
+        .where(eq(contentItems.id, itemId));
+
+      if (!existing) {
+        throw new NotFoundException('Content item not found');
+      }
+
+      await tx
+        .update(contentItems)
+        .set({ archivedAt: new Date() })
+        .where(eq(contentItems.id, itemId));
+    });
+  }
+
+  async unarchive(userId: string, itemId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: contentItems.id })
+        .from(contentItems)
+        .where(eq(contentItems.id, itemId));
+
+      if (!existing) {
+        throw new NotFoundException('Content item not found');
+      }
+
+      await tx
+        .update(contentItems)
+        .set({ archivedAt: null })
+        .where(eq(contentItems.id, itemId));
+    });
+  }
+
+  async remove(userId: string, itemId: string): Promise<void> {
+    await withRlsContext(this.db, userId, async (tx) => {
+      const [existing] = await tx
+        .select({ id: contentItems.id })
+        .from(contentItems)
+        .where(eq(contentItems.id, itemId));
+
+      if (!existing) {
+        throw new NotFoundException('Content item not found');
+      }
+
+      await tx.delete(contentItems).where(eq(contentItems.id, itemId));
+    });
   }
 }

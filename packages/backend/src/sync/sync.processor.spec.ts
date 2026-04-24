@@ -129,10 +129,10 @@ describe('SyncProcessor', () => {
     // Verify: got connector from registry
     expect(mockConnectorRegistry.get).toHaveBeenCalledWith('github');
 
-    // Verify: called fetchContent with connection data and since=null
+    // Verify: called fetchContent with connection data and since=now-interval
     expect(mockConnector.fetchContent).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'conn-1', platform: 'github' }),
-      null, // last_sync_at is null
+      expect.any(Date), // since is always now - syncIntervalMinutes
     );
 
     // Verify: upserted content items
@@ -153,7 +153,7 @@ describe('SyncProcessor', () => {
     expect(mockTx.update).toHaveBeenCalled();
   });
 
-  it('should pass last_sync_at as since when present', async () => {
+  it('should always compute since from syncIntervalMinutes regardless of lastSyncAt', async () => {
     const lastSync = new Date('2026-03-09T12:00:00Z');
     const connection = createMockConnection({ lastSyncAt: lastSync });
     mockConnectionsService.findByIdWithAuth.mockResolvedValue(connection);
@@ -170,7 +170,7 @@ describe('SyncProcessor', () => {
 
     await processor.process(createMockJob());
 
-    expect(mockConnector.fetchContent).toHaveBeenCalledWith(expect.anything(), lastSync);
+    expect(mockConnector.fetchContent).toHaveBeenCalledWith(expect.anything(), expect.any(Date));
   });
 
   it('should handle AUTH_EXPIRED error — mark connection as error, create failed sync record', async () => {

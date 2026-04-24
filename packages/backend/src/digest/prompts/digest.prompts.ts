@@ -61,6 +61,9 @@ export function buildMapPrompt(item: ContentItemForDigest, language: string): st
     const meta: string[] = [];
     if ('view_count' in item.metadata) meta.push(`Views: ${item.metadata.view_count}`);
     if ('like_count' in item.metadata) meta.push(`Likes: ${item.metadata.like_count}`);
+    if ('likeCount' in item.metadata) meta.push(`Likes: ${item.metadata.likeCount}`);
+    if ('retweetCount' in item.metadata) meta.push(`Retweets: ${item.metadata.retweetCount}`);
+    if ('replyCount' in item.metadata) meta.push(`Replies: ${item.metadata.replyCount}`);
     if ('stars' in item.metadata) meta.push(`Stars: ${item.metadata.stars}`);
     if ('likes' in item.metadata) meta.push(`Likes: ${item.metadata.likes}`);
     if ('tags' in item.metadata) meta.push(`Tags: ${(item.metadata.tags as string[]).join(', ')}`);

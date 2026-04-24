@@ -1,4 +1,4 @@
-import type { PlatformId, ConnectionType, ConnectionStatus } from './platform';
+import type { PlatformId, ConnectionType, ConnectionStatus, CredentialType } from './platform';
 
 /**
  * Health check result returned by the connector.
@@ -43,6 +43,7 @@ export interface FetchResult {
   metadata: {
     api_calls_made: number;
     rate_limit_remaining?: number;
+    [key: string]: unknown;
   };
 }
 
@@ -80,6 +81,7 @@ export interface PlatformConnectionData {
   user_id: string;
   platform: PlatformId;
   connection_type: ConnectionType;
+  credential_type?: CredentialType;
   status: ConnectionStatus;
   auth_data: Record<string, unknown> | null;
   sync_interval_minutes: number;

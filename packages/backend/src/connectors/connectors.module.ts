@@ -1,7 +1,6 @@
 import { Global, Module, OnModuleInit } from '@nestjs/common';
 import { ConnectorRegistry } from './connector.registry';
 import { GitHubConnector } from './github/github.connector';
-import { XiaohongshuConnector } from './xiaohongshu/xiaohongshu.connector';
 import { TwitterConnector } from './twitter/twitter.connector';
 import { YouTubeConnector } from './youtube/youtube.connector';
 
@@ -14,7 +13,6 @@ import { YouTubeConnector } from './youtube/youtube.connector';
   providers: [
     ConnectorRegistry,
     GitHubConnector,
-    XiaohongshuConnector,
     TwitterConnector,
     YouTubeConnector,
   ],
@@ -24,14 +22,12 @@ export class ConnectorsModule implements OnModuleInit {
   constructor(
     private readonly registry: ConnectorRegistry,
     private readonly github: GitHubConnector,
-    private readonly xiaohongshu: XiaohongshuConnector,
     private readonly twitter: TwitterConnector,
     private readonly youtube: YouTubeConnector,
   ) {}
 
   onModuleInit(): void {
     this.registry.register(this.github);
-    this.registry.register(this.xiaohongshu);
     this.registry.register(this.twitter);
     this.registry.register(this.youtube);
   }

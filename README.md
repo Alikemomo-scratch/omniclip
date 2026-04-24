@@ -17,12 +17,9 @@ In an era of algorithmic feeds that chase the latest trends, endless scrolling, 
 
 Currently, OmniClip supports gathering content from the following platforms. To guarantee high-signal information, **OmniClip completely ignores algorithmic recommendations (e.g. "For You" or "Discover" pages) across all platforms**.
 
-- **GitHub**: Tracks `Releases`, `CreateEvent` (open-sourcing), and `WatchEvent` from your followed developers. It also actively fetches the latest releases of your **Starred Repositories**. (All noisy commits and issue tracking are ignored).
+- **GitHub**: Fetches the latest releases of your **Starred Repositories** only. (All noisy commits, issue tracking, and algorithmic feed events are ignored).
 - **YouTube**: Tracks full videos from your **Subscriptions**. (Noisy `#shorts` are automatically filtered out).
-- **Twitter / X**: Intercepts only your **"Following"** timeline via the extension.
-- **Xiaohongshu / RED**: Intercepts only your **"Follow"** feed via the extension.
-
-_Note: You can configure custom sync intervals (e.g., 1 hour, 1 day, 1 month) for each platform independently based on its content velocity._
+- **Twitter / X**: Fetches your **"Following"** timeline and filters to only include tweets from accounts you actually follow (non-followed algorithmic injections are stripped out).
 
 ---
 
@@ -32,12 +29,12 @@ If you are an AI assistant tasked with helping the user set up this project, **d
 
 2. **Clone:** Clone the repository and `cd` into it if not already there.
 3. **Dependencies:** Run `pnpm install`.
-4. **Build:** Run `pnpm build` to compile the frontend, backend, and the Chrome extension.
+4. **Build:** Run `pnpm build` to compile the frontend, backend, and shared packages.
 5. **Environment Files:** Copy `.env.example` to `.env` in both `packages/backend` and `packages/frontend`.
 6. **API Key:** Ask the user for their preferred AI API Key (`OPENAI_API_KEY` or `GEMINI_API_KEY`). Once provided, inject it into `packages/backend/.env`.
 7. **Infrastructure:** Run `docker-compose up -d` to start PostgreSQL and Redis. Use a command (like `pg_isready` or retry logic) to ensure the database is actually accepting connections rather than just sleeping.
 8. **Database Migration:** Once the DB is ready, run `pnpm --filter backend db:migrate`.
-9. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instead, instruct the user to run `pnpm dev` in their own terminal, and guide them to **Step 6 & 7** below so they can install the Chrome extension and authenticate their platforms.
+9. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instead, instruct the user to run `pnpm dev` in their own terminal, and guide them to **Step 6** below so they can authenticate their platforms.
 
 ---
 
@@ -47,10 +44,9 @@ Follow these steps to configure and run OmniClip on your local machine.
 
 ### Prerequisites
 
-- **Node.js 20 LTS** (`node -v` should show v20.x)
+- **Node.js 22 LTS** (`node -v` should show v22.x)
 - **pnpm 9.x** (`npm install -g pnpm`)
 - **Docker & Docker Compose** (for running PostgreSQL and Redis)
-- **Chrome / Chromium browser** (for the OmniClip extension)
 
 ### Step 1: Clone the Repository & Build (Agent can do this)
 
@@ -80,7 +76,8 @@ cp packages/frontend/.env.example packages/frontend/.env
 ```
 
 **Required Configuration:**
-Open `packages/backend/.env` in your text editor and configure the following:
+Open `packages/backend/.env` in your text editor and configure the following.
+For detailed step-by-step instructions (with screenshots) on how to obtain each key, see **[Platform Keys Setup Guide](docs/platform-keys-setup.md)**.
 
 1. **AI API Key (Required):** Add your OpenAI or Gemini API key for the AI Digest feature to work:
 
@@ -119,25 +116,16 @@ pnpm dev
 - The **Frontend** will be available at `http://localhost:3000`
 - The **Backend API** will be available at `http://localhost:3001`
 
-### Step 6: Install the Chrome Extension (Requires Human Action)
-
-To collect data from Twitter/X and Xiaohongshu without needing API keys, you must install the OmniClip extension.
-
-1. Open Google Chrome and navigate to `chrome://extensions/`
-2. Enable **"Developer mode"** (toggle in the top right corner).
-3. Click **"Load unpacked"**.
-4. Select the `packages/extension/dist/` directory inside the OmniClip project folder.
-
-### Step 7: Connect Your Platforms (Requires Human Action)
+### Step 6: Connect Your Platforms (Requires Human Action)
 
 1. Open your browser and go to `http://localhost:3000`.
 2. Register a new local account and log in.
 3. Navigate to the **Connections** page.
-4. Add your desired platforms.
+4. Add your desired platforms. (📖 See **[Platform Keys Setup Guide](docs/platform-keys-setup.md)** for detailed instructions on obtaining each credential, including expiration info.)
    - **GitHub**: Provide a GitHub Personal Access Token (Classic). To track only public data, **no specific scopes are required** (just generating the token is enough to boost your API rate limit). If you want to track private repositories, check the `repo` scope.
    - **YouTube**: Authenticate via the standard OAuth popup.
+   - **Twitter/X**: Provide cookies (`auth_token` + `ct0`) extracted from browser DevTools, or an API key from the X Auth Helper extension.
    - **Configure Sync Interval:** During connection setup, you can select how often OmniClip should sync data from this platform (e.g., Every 1 hour, Every 1 day, Every 1 month).
-5. For Extension-based platforms (Twitter, Xiaohongshu), simply log into those websites in your browser; the extension will automatically intercept and sync your saved content to your OmniClip feed!
 
 ---
 
