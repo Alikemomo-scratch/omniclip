@@ -341,6 +341,7 @@ export interface User {
   digest_time: string;
   timezone: string;
   content_retention_days: number;
+  digest_prompt: string | null;
 }
 
 export const usersApi = {
@@ -388,6 +389,34 @@ export interface TopicGroup {
   platforms: string[];
 }
 
+// New format (two-phase pipeline output)
+export interface DigestHeadline {
+  item_id: string;
+  topic: string;
+  title: string;
+  analysis: string;
+  platform: string;
+  original_url: string;
+}
+
+export interface DigestCategoryItem {
+  item_id: string;
+  one_liner: string;
+  platform: string;
+  original_url: string;
+}
+
+export interface DigestCategory {
+  topic: string;
+  items: DigestCategoryItem[];
+}
+
+export interface DigestOutput {
+  headlines: DigestHeadline[];
+  categories: DigestCategory[];
+  trend_analysis: string;
+}
+
 export interface Digest {
   id: string;
   digest_type: string;
@@ -397,9 +426,14 @@ export interface Digest {
   item_count: number;
   status: string;
   generated_at: string | null;
-  topic_groups: TopicGroup[];
+  topic_groups: DigestOutput | TopicGroup[];
   trend_analysis: string | null;
   created_at: string;
+}
+
+/** Check if topic_groups is in the new DigestOutput format */
+export function isNewDigestFormat(topicGroups: DigestOutput | TopicGroup[]): topicGroups is DigestOutput {
+  return topicGroups !== null && typeof topicGroups === 'object' && !Array.isArray(topicGroups) && 'headlines' in topicGroups;
 }
 
 export interface DigestsResponse {
