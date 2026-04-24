@@ -9,15 +9,24 @@ import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
 import { contentItems, digests, digestItems, users } from '../common/database/schema';
 import {
-  buildBatchMapPrompt,
-  buildReducePrompt,
-  buildSimpleSummaryPrompt,
-  batchItems,
+  formatContentItems,
+  splitPromptTemplate,
+  DEFAULT_PHASE1_PROMPT,
+  DEFAULT_PHASE2_PROMPT,
+  PHASE1_JSON_SCHEMA,
+  PHASE2_JSON_SCHEMA,
   type ContentItemForDigest,
-  type ItemSummary,
-  type TopicGroup,
+  type Phase1Result,
+  type DigestOutput,
+  type DigestHeadline,
+  type DigestCategory,
   type DigestResult,
 } from './prompts/digest.prompts';
+import {
+  validatePhase1Response,
+  validatePhase2Response,
+  deduplicatePhase1Result,
+} from './prompts/digest.validators';
 
 /** Progress event emitted during SSE streaming */
 export interface DigestProgressEvent {
@@ -51,7 +60,7 @@ export class DigestService {
 
   /**
    * Generate a digest for the given user and time period.
-   * Uses map-reduce: batch-summarize items → group by topic → trend analysis.
+   * Two-phase pipeline: screen+classify → deep-dive headlines.
    */
   async generateDigest(
     userId: string,
@@ -78,9 +87,14 @@ export class DigestService {
       const items = await this.fetchContentForPeriod(userId, periodStart, periodEnd);
 
       if (items.length === 0) {
-        // No content → mark completed with empty result
+        // No content → save canonical empty shape
+        const emptyOutput: DigestOutput = {
+          headlines: [],
+          categories: [],
+          trend_analysis: '',
+        };
         await this.completeDigest(userId, digestId, {
-          topic_groups: [],
+          topic_groups: emptyOutput,
           trend_analysis: '',
           item_count: 0,
         });
@@ -96,18 +110,92 @@ export class DigestService {
         data: { stage: 'fetching', progress: 0.1, item_count: items.length },
       });
 
-      let result: DigestResult;
+      // 4. Fetch user's digest_prompt
+      const userPrompt = await this.fetchUserDigestPrompt(userId);
+      const { phase1: phase1Prompt, phase2: phase2Prompt } = splitPromptTemplate(userPrompt);
 
-      if (items.length < 5) {
-        // Simple case: individual summaries
-        result = await this.generateSimpleDigest(items, language, onProgress);
-      } else {
-        // Full map-reduce pipeline
-        result = await this.generateMapReduceDigest(items, language, onProgress);
+      // 5. Build source data lookup map
+      const sourceMap = new Map(items.map((item) => [item.id, item]));
+      const validIds = new Set(items.map((item) => item.id));
+
+      // 6. Phase 1: Screen & Classify (500 char body)
+      onProgress?.({
+        type: 'progress',
+        data: { stage: 'screening', progress: 0.2 },
+      });
+
+      const phase1Result = await this.executePhase1(
+        phase1Prompt,
+        items,
+        validIds,
+        language,
+      );
+
+      if (!phase1Result) {
+        // Phase 1 completely failed — mark digest as failed
+        await this.updateDigestStatus(userId, digestId, 'failed');
+        onProgress?.({
+          type: 'error',
+          data: { digest_id: digestId, error: 'Phase 1 failed: could not classify content' },
+        });
+        throw new Error('Phase 1 failed: could not classify content');
       }
 
-      // 4. Save completed digest and link items
-      await this.completeDigest(userId, digestId, result);
+      onProgress?.({
+        type: 'progress',
+        data: {
+          stage: 'screening_complete',
+          progress: 0.5,
+          headline_count: phase1Result.headlines.length,
+          category_count: phase1Result.categories.length,
+        },
+      });
+
+      // 7. Phase 2: Deep-dive headlines (3000 char body)
+      let finalHeadlines: DigestHeadline[] = [];
+
+      if (phase1Result.headlines.length > 0) {
+        onProgress?.({
+          type: 'progress',
+          data: { stage: 'deep_dive', progress: 0.6 },
+        });
+
+        finalHeadlines = await this.executePhase2(
+          phase2Prompt,
+          phase1Result.headlines,
+          items,
+          sourceMap,
+          language,
+        );
+      }
+
+      // 8. Back-fill system fields on categories
+      const finalCategories: DigestCategory[] = phase1Result.categories.map((cat) => ({
+        topic: cat.topic,
+        items: cat.items.map((ci) => {
+          const source = sourceMap.get(ci.item_id);
+          return {
+            item_id: ci.item_id,
+            one_liner: ci.one_liner,
+            platform: source?.platform ?? 'unknown',
+            original_url: source?.original_url ?? '',
+          };
+        }),
+      }));
+
+      // 9. Assemble final DigestOutput
+      const digestOutput: DigestOutput = {
+        headlines: finalHeadlines,
+        categories: finalCategories,
+        trend_analysis: phase1Result.trend_analysis,
+      };
+
+      // 10. Save and link
+      await this.completeDigest(userId, digestId, {
+        topic_groups: digestOutput,
+        trend_analysis: phase1Result.trend_analysis,
+        item_count: items.length,
+      });
       await this.linkDigestItems(
         userId,
         digestId,
@@ -122,7 +210,12 @@ export class DigestService {
       return digestId;
     } catch (error) {
       this.logger.error(`Digest generation failed: ${error}`);
-      await this.updateDigestStatus(userId, digestId, 'failed');
+      // Only update to failed if not already set
+      try {
+        await this.updateDigestStatus(userId, digestId, 'failed');
+      } catch {
+        // Status may already be set
+      }
       onProgress?.({
         type: 'error',
         data: { digest_id: digestId, error: String(error) },
@@ -376,104 +469,215 @@ export class DigestService {
     });
   }
 
-  /**
-   * Simple digest: <5 items, just summarize individually.
-   */
-  private async generateSimpleDigest(
-    items: ContentItemForDigest[],
-    language: string,
-    onProgress?: ProgressCallback,
-  ): Promise<DigestResult> {
-    onProgress?.({
-      type: 'progress',
-      data: { stage: 'summarizing', progress: 0.3 },
+  private async fetchUserDigestPrompt(userId: string): Promise<string | null> {
+    return withRlsContext(this.db, userId, async (tx) => {
+      const [row] = await tx
+        .select({ digestPrompt: users.digestPrompt })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return row?.digestPrompt ?? null;
     });
+  }
 
-    const prompt = buildSimpleSummaryPrompt(items, language);
-    const response = await this.callAI(prompt);
-    const parsed = this.parseJsonResponse<{
-      topic_groups: TopicGroup[];
-      trend_analysis: string;
-    }>(response);
+  // ── Phase 1: Screen & Classify ──
 
-    return {
-      topic_groups: parsed.topic_groups,
-      trend_analysis: parsed.trend_analysis || '',
-      item_count: items.length,
-    };
+  /**
+   * Phase 1: Screen & classify all content items.
+   * Tries user prompt first, falls back to default on validation failure.
+   * Returns null if transport fails (all retries exhausted) OR both prompts fail validation.
+   */
+  private async executePhase1(
+    userPhase1Prompt: string,
+    items: ContentItemForDigest[],
+    validIds: Set<string>,
+    language: string,
+  ): Promise<Phase1Result | null> {
+    const formattedItems = formatContentItems(items, 500);
+    const contentBlock = formattedItems.join('\n\n');
+    const langInstruction = this.buildLanguageInstruction(language);
+
+    try {
+      // Try user prompt
+      const userFullPrompt = this.buildPhase1FullPrompt(userPhase1Prompt, langInstruction, contentBlock);
+      const userResult = await this.tryPhase1(userFullPrompt, validIds);
+      if (userResult) return userResult;
+
+      // User prompt validation failed — retry with default
+      this.logger.warn('Phase 1 user prompt failed validation, retrying with default prompt');
+      const defaultFullPrompt = this.buildPhase1FullPrompt(DEFAULT_PHASE1_PROMPT, langInstruction, contentBlock);
+      return this.tryPhase1(defaultFullPrompt, validIds);
+    } catch (error) {
+      // Transport exhaustion (all retries in callAIWithRetry failed) — phase fails
+      this.logger.error(`Phase 1 transport failure after all retries: ${error}`);
+      return null;
+    }
+  }
+
+  private buildPhase1FullPrompt(
+    instruction: string,
+    langInstruction: string,
+    contentBlock: string,
+  ): string {
+    return `${instruction}\n\n${langInstruction}\n\n${PHASE1_JSON_SCHEMA}\n\nContent items:\n${contentBlock}`;
+  }
+
+  private async tryPhase1(
+    prompt: string,
+    validIds: Set<string>,
+  ): Promise<Phase1Result | null> {
+    // Transport errors from callAIWithRetry propagate to executePhase1
+    const response = await this.callAIWithRetry(prompt);
+    const validation = validatePhase1Response(response, validIds);
+    if (!validation.ok) {
+      // Schema/parse failure — return null to trigger default prompt fallback
+      this.logger.warn(`Phase 1 validation failed: ${validation.error}`);
+      return null;
+    }
+    // Log warning if headlines were capped (spec: headline cap warning)
+    if (validation.droppedHeadlineCount && validation.droppedHeadlineCount > 0) {
+      this.logger.warn(
+        `Phase 1: ${validation.droppedHeadlineCount} headlines exceeded cap of 10, dropped`,
+      );
+    }
+    return deduplicatePhase1Result(validation.value, validation.allHeadlineIds);
+  }
+
+  // ── Phase 2: Deep-dive Headlines ──
+
+  /**
+   * Phase 2: Deep-dive analysis for headline items.
+   * Tries user prompt first, falls back to default on validation failure.
+   * Transport exhaustion → returns empty (digest completes with categories only).
+   * Returns whatever headlines succeed — partial results are OK.
+   */
+  private async executePhase2(
+    userPhase2Prompt: string,
+    phase1Headlines: { item_id: string; topic: string }[],
+    allItems: ContentItemForDigest[],
+    sourceMap: Map<string, ContentItemForDigest>,
+    language: string,
+  ): Promise<DigestHeadline[]> {
+    const headlineItems = phase1Headlines
+      .map((h) => sourceMap.get(h.item_id))
+      .filter((item): item is ContentItemForDigest => item !== undefined);
+
+    if (headlineItems.length === 0) return [];
+
+    const formattedItems = formatContentItems(headlineItems, 3000);
+    const contentBlock = formattedItems.join('\n\n');
+    const langInstruction = this.buildLanguageInstruction(language);
+    const validHeadlineIds = new Set(phase1Headlines.map((h) => h.item_id));
+
+    // Build topic lookup
+    const topicMap = new Map(phase1Headlines.map((h) => [h.item_id, h.topic]));
+
+    let phase2Results: import('./prompts/digest.prompts').Phase2HeadlineResult[] | null = null;
+
+    try {
+      // Try user prompt
+      const userFullPrompt = this.buildPhase2FullPrompt(userPhase2Prompt, langInstruction, contentBlock);
+      phase2Results = await this.tryPhase2(userFullPrompt, validHeadlineIds);
+
+      if (!phase2Results) {
+        // User prompt validation failed — retry with default
+        this.logger.warn('Phase 2 user prompt failed validation, retrying with default prompt');
+        const defaultFullPrompt = this.buildPhase2FullPrompt(DEFAULT_PHASE2_PROMPT, langInstruction, contentBlock);
+        phase2Results = await this.tryPhase2(defaultFullPrompt, validHeadlineIds);
+      }
+    } catch (error) {
+      // Transport exhaustion (all retries in callAIWithRetry failed)
+      this.logger.error(`Phase 2 transport failure after all retries: ${error}`);
+      return [];
+    }
+
+    if (!phase2Results || phase2Results.length === 0) {
+      // Phase 2 completely failed — return empty (digest still completes with categories only)
+      this.logger.warn('Phase 2 completely failed — digest will have categories only');
+      return [];
+    }
+
+    // Log missing headlines
+    const returnedIds = new Set(phase2Results.map((r) => r.item_id));
+    const missingIds = phase1Headlines
+      .map((h) => h.item_id)
+      .filter((id) => !returnedIds.has(id));
+    if (missingIds.length > 0) {
+      this.logger.warn(`Phase 2: ${missingIds.length} headlines missing analysis: ${missingIds.join(', ')}`);
+    }
+
+    // Merge: topic from Phase 1, title+analysis from Phase 2, platform+url from source
+    return phase2Results.map((r) => {
+      const source = sourceMap.get(r.item_id);
+      return {
+        item_id: r.item_id,
+        topic: topicMap.get(r.item_id) ?? 'Uncategorized',
+        title: r.title,
+        analysis: r.analysis,
+        platform: source?.platform ?? 'unknown',
+        original_url: source?.original_url ?? '',
+      };
+    });
+  }
+
+  private buildPhase2FullPrompt(
+    instruction: string,
+    langInstruction: string,
+    contentBlock: string,
+  ): string {
+    return `${instruction}\n\n${langInstruction}\n\n${PHASE2_JSON_SCHEMA}\n\nHeadline items for detailed analysis:\n${contentBlock}`;
+  }
+
+  private async tryPhase2(
+    prompt: string,
+    validHeadlineIds: Set<string>,
+  ): Promise<import('./prompts/digest.prompts').Phase2HeadlineResult[] | null> {
+    // Transport errors from callAIWithRetry propagate to executePhase2
+    const response = await this.callAIWithRetry(prompt);
+    const validation = validatePhase2Response(response, validHeadlineIds);
+    if (!validation.ok) {
+      // Schema/parse failure — return null to trigger default prompt fallback
+      this.logger.warn(`Phase 2 validation failed: ${validation.error}`);
+      return null;
+    }
+    return validation.value;
+  }
+
+  // ── Shared helpers ──
+
+  private buildLanguageInstruction(language: string): string {
+    if (language === 'zh') return 'Please respond in Chinese (中文).';
+    return `Please respond in ${language}.`;
   }
 
   /**
-   * Full map-reduce pipeline for >=5 items.
+   * Wrap callAI with retry logic for transport/timeout errors.
+   * Spec: "Retry up to 2x with backoff" per phase (3 total attempts).
+   * Only transport errors trigger retry — parse/schema failures fall through.
    */
-  private async generateMapReduceDigest(
-    items: ContentItemForDigest[],
-    language: string,
-    onProgress?: ProgressCallback,
-  ): Promise<DigestResult> {
-    // MAP phase: batch-summarize items (5 per batch)
-    const batches = batchItems(items, 5);
-    const allSummaries: ItemSummary[] = [];
-
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
-      const progress = 0.1 + (0.5 * (i + 1)) / batches.length;
-
-      onProgress?.({
-        type: 'progress',
-        data: {
-          stage: 'summarizing',
-          progress,
-          current_batch: i + 1,
-          total_batches: batches.length,
-        },
-      });
-
-      const prompt = buildBatchMapPrompt(batch, language);
-      const response = await this.callAI(prompt);
-      const batchSummaries = this.parseJsonResponse<{ id: string; summary: string }[]>(response);
-
-      // Map back to ItemSummary with platform info
-      for (const bs of batchSummaries) {
-        const originalItem = items.find((item) => item.id === bs.id);
-        allSummaries.push({
-          id: bs.id,
-          platform: originalItem?.platform ?? 'unknown',
-          summary: bs.summary,
-        });
+  private async callAIWithRetry(prompt: string, maxRetries = 2): Promise<string> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.callAI(prompt);
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          const delay = 1000 * Math.pow(2, attempt); // 1s, 2s
+          this.logger.warn(
+            `LLM call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${error}`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
     }
-
-    // REDUCE phase: group by topic + trend analysis
-    onProgress?.({
-      type: 'progress',
-      data: { stage: 'grouping', progress: 0.7 },
-    });
-
-    const reducePrompt = buildReducePrompt(allSummaries, language);
-    const reduceResponse = await this.callAI(reducePrompt);
-    const result = this.parseJsonResponse<{
-      topic_groups: TopicGroup[];
-      trend_analysis: string;
-    }>(reduceResponse);
-
-    // Emit each topic group
-    for (const group of result.topic_groups) {
-      onProgress?.({
-        type: 'topic',
-        data: { topic: group.topic, summary: group.summary },
-      });
-    }
-
-    return {
-      topic_groups: result.topic_groups,
-      trend_analysis: result.trend_analysis || '',
-      item_count: items.length,
-    };
+    throw lastError;
   }
 
   /**
-   * Call AI API (prefers Gemini, falls back to OpenAI). Falls back to a stub if no API key is configured.
+   * Call AI API (prefers Gemini, falls back to OpenAI).
+   * THROWS on transport errors — caller (callAIWithRetry) handles retries.
+   * Returns stub ONLY when no API keys are configured at all.
    */
   private async callAI(prompt: string): Promise<string> {
     const systemPrompt = 'You are an AI content curator that generates structured JSON responses.';
@@ -489,29 +693,26 @@ export class DigestService {
         return result.response.text();
       } catch (error) {
         this.logger.error(`Gemini generation failed: ${error}`);
-        // Fallthrough to OpenAI or stub if Gemini fails
+        // If OpenAI is available, fall through to it. Otherwise, throw.
+        if (!this.openai) throw error;
       }
     }
 
     if (this.openai) {
-      try {
-        const response = await this.openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.3,
-          response_format: { type: 'json_object' },
-        });
-        return response.choices[0]?.message?.content ?? '{}';
-      } catch (error) {
-        this.logger.error(`OpenAI generation failed: ${error}`);
-      }
+      // No response_format constraint — Phase 2 requires top-level JSON array (R2-4)
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.3,
+      });
+      return response.choices[0]?.message?.content ?? '{}';
     }
 
-    // No API key or both failed — return a mock/stub response for development
-    this.logger.warn('No valid AI API key configured or calls failed; returning stub response');
+    // No API keys configured at all — return stub for development
+    this.logger.warn('No AI API key configured; returning stub response');
     return this.stubAIResponse(prompt);
   }
 
@@ -519,55 +720,41 @@ export class DigestService {
    * Stub response when no API key is configured.
    */
   private stubAIResponse(prompt: string): string {
-    // Detect which type of prompt this is
-    if (prompt.includes('Summarize each of the following content items in 1-3 sentences each')) {
-      // Batch MAP prompt — extract item IDs from the prompt
-      const idMatches = prompt.match(/\(id: ([^,]+),/g) ?? [];
-      const ids = idMatches.map((m) => m.replace('(id: ', '').replace(',', ''));
-      return JSON.stringify(ids.map((id) => ({ id, summary: `Summary of item ${id}` })));
-    }
+    // Detect Phase 1 vs Phase 2 by checking for schema hints
+    if (prompt.includes('"headlines"') && prompt.includes('"categories"')) {
+      // Phase 1 stub — extract item IDs from content block
+      const idMatches = prompt.match(/id:([a-f0-9-]+)/g) ?? [];
+      const ids = idMatches.map((m) => m.replace('id:', ''));
 
-    if (prompt.includes('topic_groups') && prompt.includes('trend_analysis')) {
-      // REDUCE or SIMPLE prompt — extract item IDs
-      const idMatches = prompt.match(/\(id: ([^,)]+)/g) ?? [];
-      const ids = idMatches.map((m) => m.replace('(id: ', ''));
-      const platforms = [
-        ...new Set(
-          (prompt.match(/platform: (\w+)/g) ?? []).map((m) => m.replace('platform: ', '')),
-        ),
-      ];
+      const headlines = ids.slice(0, 2).map((id) => ({ item_id: id, topic: 'General' }));
+      const categoryItems = ids.slice(2).map((id) => ({
+        item_id: id,
+        one_liner: `Summary of item ${id}`,
+      }));
 
       return JSON.stringify({
-        topic_groups: [
-          {
-            topic: 'General Updates',
-            summary: 'A collection of updates from various platforms.',
-            item_ids: ids,
-            platforms: platforms.length > 0 ? platforms : ['unknown'],
-          },
-        ],
+        headlines,
+        categories: categoryItems.length > 0
+          ? [{ topic: 'Other Updates', items: categoryItems }]
+          : [],
         trend_analysis: 'Cross-platform analysis of recent content.',
       });
     }
 
-    // Fallback
-    return '{}';
-  }
+    if (prompt.includes('"title"') && prompt.includes('"analysis"')) {
+      // Phase 2 stub
+      const idMatches = prompt.match(/id:([a-f0-9-]+)/g) ?? [];
+      const ids = idMatches.map((m) => m.replace('id:', ''));
 
-  /**
-   * Parse JSON from an OpenAI response, stripping markdown fences if present.
-   */
-  private parseJsonResponse<T>(response: string): T {
-    let cleaned = response.trim();
-    // Strip markdown code fences
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      return JSON.stringify(
+        ids.map((id) => ({
+          item_id: id,
+          title: `Headline for ${id}`,
+          analysis: `Detailed analysis of item ${id}.`,
+        })),
+      );
     }
-    try {
-      return JSON.parse(cleaned) as T;
-    } catch {
-      this.logger.error(`Failed to parse AI response as JSON: ${cleaned.slice(0, 200)}`);
-      throw new Error('Failed to parse AI response');
-    }
+
+    return '{}';
   }
 }
