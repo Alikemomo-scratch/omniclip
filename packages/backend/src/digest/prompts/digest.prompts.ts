@@ -236,3 +236,79 @@ Respond in this exact JSON format (no markdown, no code fences):
   { "id": "item_id", "summary": "1-3 sentence detailed summary extracting key features/takeaways" }
 ]`;
 }
+
+// ── ContentFormatter ──
+
+/**
+ * Extract platform-specific metrics from metadata into a human-readable string.
+ */
+export function extractMetrics(platform: string, metadata: Record<string, unknown>): string {
+  const parts: string[] = [];
+
+  switch (platform) {
+    case 'twitter':
+    case 'x':
+      if ('likeCount' in metadata) parts.push(`likes: ${metadata.likeCount}`);
+      if ('retweetCount' in metadata) parts.push(`retweets: ${metadata.retweetCount}`);
+      if ('replyCount' in metadata) parts.push(`replies: ${metadata.replyCount}`);
+      if ('views' in metadata) parts.push(`views: ${metadata.views}`);
+      break;
+
+    case 'github':
+      if ('stars' in metadata) parts.push(`stars: ${metadata.stars}`);
+      if ('forks' in metadata) parts.push(`forks: ${metadata.forks}`);
+      if ('language' in metadata) parts.push(`language: ${metadata.language}`);
+      if ('tags' in metadata) parts.push(`tags: ${(metadata.tags as string[]).join(', ')}`);
+      break;
+
+    case 'youtube':
+      if ('view_count' in metadata) parts.push(`views: ${metadata.view_count}`);
+      if ('like_count' in metadata) parts.push(`likes: ${metadata.like_count}`);
+      if ('duration' in metadata) parts.push(`duration: ${metadata.duration}`);
+      break;
+
+    default:
+      // Generic fallback — check for common metric keys
+      if ('likes' in metadata) parts.push(`likes: ${metadata.likes}`);
+      if ('views' in metadata) parts.push(`views: ${metadata.views}`);
+      break;
+  }
+
+  return parts.join(', ');
+}
+
+/**
+ * Format content items into standardized text blocks for LLM consumption.
+ * Each item becomes a multi-line text block with header and indented fields.
+ */
+export function formatContentItems(
+  items: ContentItemForDigest[],
+  maxBodyLength: number,
+): string[] {
+  return items.map((item, index) => {
+    const lines: string[] = [];
+
+    // Header line
+    lines.push(
+      `[${index + 1}] id:${item.id} | ${item.platform}/${item.content_type} | ${item.published_at}`,
+    );
+
+    // Optional fields
+    if (item.title) lines.push(`  Title: ${item.title}`);
+    if (item.author_name) lines.push(`  Author: ${item.author_name}`);
+    if (item.body) {
+      const truncated =
+        item.body.length > maxBodyLength
+          ? item.body.slice(0, maxBodyLength - 3) + '...'
+          : item.body;
+      lines.push(`  Content: ${truncated}`);
+    }
+    lines.push(`  URL: ${item.original_url}`);
+
+    // Metrics
+    const metrics = extractMetrics(item.platform, item.metadata);
+    if (metrics) lines.push(`  Metrics: ${metrics}`);
+
+    return lines.join('\n');
+  });
+}
