@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsIn, Matches } from 'class-validator';
+import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsIn, Matches, ValidateIf } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -31,4 +31,10 @@ export class UpdateUserDto {
   @Min(7)
   @Max(365)
   content_retention_days?: number;
+
+  @IsOptional()
+  @ValidateIf((o) => o.digest_prompt !== null)
+  @IsString()
+  @MaxLength(10000)
+  digest_prompt?: string | null;
 }
