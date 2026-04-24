@@ -19,21 +19,69 @@ export interface ContentItemForDigest {
   metadata: Record<string, unknown>;
 }
 
-export interface ItemSummary {
-  id: string;
-  platform: string;
-  summary: string;
-}
+// ── Phase 1 output types ──
 
-export interface TopicGroup {
+export interface Phase1Headline {
+  item_id: string;
   topic: string;
-  summary: string;
-  item_ids: string[];
-  platforms: string[];
 }
 
+export interface Phase1CategoryItem {
+  item_id: string;
+  one_liner: string;
+}
+
+export interface Phase1Category {
+  topic: string;
+  items: Phase1CategoryItem[];
+}
+
+export interface Phase1Result {
+  headlines: Phase1Headline[];
+  categories: Phase1Category[];
+  trend_analysis: string;
+}
+
+// ── Phase 2 output types ──
+
+export interface Phase2HeadlineResult {
+  item_id: string;
+  title: string;
+  analysis: string;
+}
+
+// ── Final merged output ──
+
+export interface DigestHeadline {
+  item_id: string;
+  topic: string;
+  title: string;
+  analysis: string;
+  platform: string;
+  original_url: string;
+}
+
+export interface DigestCategoryItem {
+  item_id: string;
+  one_liner: string;
+  platform: string;
+  original_url: string;
+}
+
+export interface DigestCategory {
+  topic: string;
+  items: DigestCategoryItem[];
+}
+
+export interface DigestOutput {
+  headlines: DigestHeadline[];
+  categories: DigestCategory[];
+  trend_analysis: string;
+}
+
+// Keep for backward compatibility — used by completeDigest
 export interface DigestResult {
-  topic_groups: TopicGroup[];
+  topic_groups: DigestOutput | Record<string, unknown>[];
   trend_analysis: string;
   item_count: number;
 }
@@ -76,7 +124,10 @@ export function buildMapPrompt(item: ContentItemForDigest, language: string): st
 /**
  * Build the GROUP + REDUCE prompt: cluster summaries into topics and analyze trends.
  */
-export function buildReducePrompt(summaries: ItemSummary[], language: string): string {
+export function buildReducePrompt(
+  summaries: Array<{ id: string; platform: string; summary: string }>,
+  language: string,
+): string {
   const langInstruction =
     language === 'zh' ? 'Please respond in Chinese (中文).' : `Please respond in ${language}.`;
 
