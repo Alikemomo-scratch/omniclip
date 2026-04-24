@@ -1,19 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi } from '@/lib/api-client';
 import type { ApiError } from '@/lib/api-client';
+
+const DEFAULT_DIGEST_PROMPT = `# Phase 1: Screening & Classification
+You are a tech content curator. Classify the following content by topic and select the 3-5 most important items as headlines.
+
+Importance criteria:
+- Major releases or breakthroughs in AI/LLM
+- Widely impactful technical changes
+- Significant product launches
+
+For non-headline items, write a one-liner summary each.
+
+---PHASE_SEPARATOR---
+
+# Phase 2: Headline Deep Dive
+You are a senior tech journalist. Write detailed analysis for each important item in newspaper headline style:
+- What is it and why it matters
+- Impact on the industry/developers
+- Key technical details`;
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [digestPrompt, setDigestPrompt] = useState<string | null>(null);
+  const [promptInitialized, setPromptInitialized] = useState(false);
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user'],
     queryFn: () => usersApi.me(),
   });
+
+  // Initialize prompt from fetched user data
+  useEffect(() => {
+    if (user && !promptInitialized) {
+      setDigestPrompt(user.digest_prompt);
+      setPromptInitialized(true);
+    }
+  }, [user, promptInitialized]);
 
   const updateMutation = useMutation({
     mutationFn: usersApi.update,
@@ -39,6 +67,7 @@ export default function SettingsPage() {
       digest_time: formData.get('digest_time') as string,
       timezone: formData.get('timezone') as string,
       content_retention_days: Number(formData.get('content_retention_days')),
+      digest_prompt: digestPrompt,
     });
   }
 
@@ -189,6 +218,35 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-1">
             How many days to keep collected content (7&ndash;365).
           </p>
+        </div>
+
+        <div>
+          <label
+            htmlFor="digest_prompt"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Digest Prompt Template
+          </label>
+          <textarea
+            id="digest_prompt"
+            value={digestPrompt ?? DEFAULT_DIGEST_PROMPT}
+            onChange={(e) => setDigestPrompt(e.target.value)}
+            rows={12}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+          />
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-gray-400">
+              Use <code className="bg-gray-100 px-1 rounded">---PHASE_SEPARATOR---</code> to
+              split Phase 1 (screening) and Phase 2 (deep-dive) prompts.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDigestPrompt(null)}
+              className="text-xs text-blue-600 hover:text-blue-800"
+            >
+              Reset to Default
+            </button>
+          </div>
         </div>
 
         <div className="pt-2">
