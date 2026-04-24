@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { digestsApi, contentApi } from '@/lib/api-client';
-import type { Digest, TopicGroup, ContentItem, ApiError } from '@/lib/api-client';
+import type { Digest, TopicGroup, DigestOutput, DigestHeadline, DigestCategory, ContentItem, ApiError } from '@/lib/api-client';
+import { isNewDigestFormat } from '@/lib/api-client';
 
 export default function DigestsPage() {
   const queryClient = useQueryClient();
@@ -315,40 +316,8 @@ function DigestCard({
 }
 
 function DigestDetail({ digest }: { digest: Digest }) {
-  const topicGroups = digest.topic_groups ?? [];
-
-  // Collect all unique item_ids across topic groups
-  const allItemIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const group of topicGroups) {
-      for (const id of group.item_ids) {
-        ids.add(id);
-      }
-    }
-    return Array.from(ids);
-  }, [topicGroups]);
-
-  // Batch fetch content items for all topic groups
-  const { data: contentItems } = useQuery({
-    queryKey: ['digest-content-items', digest.id],
-    queryFn: async () => {
-      if (allItemIds.length === 0) return {};
-      const results = await Promise.allSettled(
-        allItemIds.map((id) => contentApi.getById(id)),
-      );
-      const itemMap: Record<string, ContentItem> = {};
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          itemMap[result.value.id] = result.value;
-        }
-      }
-      return itemMap;
-    },
-    enabled: allItemIds.length > 0,
-    staleTime: 5 * 60 * 1000, // cache for 5 minutes
-  });
-
-  const itemMap = contentItems ?? {};
+  const topicGroups = digest.topic_groups;
+  const isNewFormat = topicGroups && isNewDigestFormat(topicGroups);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -374,19 +343,152 @@ function DigestDetail({ digest }: { digest: Digest }) {
         </div>
       )}
 
-      {/* Topic Groups */}
-      {topicGroups.length > 0 ? (
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-700">Topics</h3>
-          {topicGroups.map((group, idx) => (
-            <TopicGroupCard key={idx} group={group} itemMap={itemMap} />
-          ))}
-        </div>
+      {isNewFormat ? (
+        <NewFormatContent output={topicGroups as DigestOutput} />
       ) : (
-        <div className="text-center py-8 text-gray-400 text-sm">
-          No topic groups in this digest.
+        <OldFormatContent digest={digest} groups={(topicGroups ?? []) as TopicGroup[]} />
+      )}
+    </div>
+  );
+}
+
+function NewFormatContent({ output }: { output: DigestOutput }) {
+  return (
+    <>
+      {/* Headlines */}
+      {output.headlines.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Headlines</h3>
+          <div className="space-y-4">
+            {output.headlines.map((headline) => (
+              <HeadlineCard key={headline.item_id} headline={headline} />
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Categories */}
+      {output.categories.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Other Updates</h3>
+          <div className="space-y-3">
+            {output.categories.map((category, idx) => (
+              <CategoryCard key={idx} category={category} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {output.headlines.length === 0 && output.categories.length === 0 && (
+        <div className="text-center py-8 text-gray-400 text-sm">
+          No content in this digest.
+        </div>
+      )}
+    </>
+  );
+}
+
+function HeadlineCard({ headline }: { headline: DigestHeadline }) {
+  return (
+    <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded text-xs font-medium">
+          {headline.topic}
+        </span>
+        <span className="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-xs capitalize">
+          {headline.platform}
+        </span>
+      </div>
+      <h4 className="font-medium text-gray-900 mb-2">{headline.title}</h4>
+      <p className="text-sm text-gray-700 whitespace-pre-line">{headline.analysis}</p>
+      {headline.original_url && (
+        <a
+          href={headline.original_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block mt-2 text-xs text-blue-600 hover:underline"
+        >
+          View original &rarr;
+        </a>
+      )}
+    </div>
+  );
+}
+
+function CategoryCard({ category }: { category: DigestCategory }) {
+  return (
+    <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+      <h4 className="font-medium text-gray-900 mb-2">{category.topic}</h4>
+      <ul className="space-y-1.5">
+        {category.items.map((item) => (
+          <li key={item.item_id} className="flex items-start gap-2 text-sm">
+            <span className="px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded text-xs capitalize flex-shrink-0 mt-0.5">
+              {item.platform}
+            </span>
+            <span className="text-gray-600">{item.one_liner}</span>
+            {item.original_url && (
+              <a
+                href={item.original_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline flex-shrink-0"
+              >
+                ↗
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function OldFormatContent({ digest, groups }: { digest: Digest; groups: TopicGroup[] }) {
+  const allItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const group of groups) {
+      for (const id of group.item_ids) {
+        ids.add(id);
+      }
+    }
+    return Array.from(ids);
+  }, [groups]);
+
+  const { data: contentItems } = useQuery({
+    queryKey: ['digest-content-items', digest.id],
+    queryFn: async () => {
+      if (allItemIds.length === 0) return {};
+      const results = await Promise.allSettled(
+        allItemIds.map((id) => contentApi.getById(id)),
+      );
+      const itemMap: Record<string, ContentItem> = {};
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          itemMap[result.value.id] = result.value;
+        }
+      }
+      return itemMap;
+    },
+    enabled: allItemIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const itemMap = contentItems ?? {};
+
+  if (groups.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-400 text-sm">
+        No topic groups in this digest.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-gray-700">Topics</h3>
+      {groups.map((group, idx) => (
+        <TopicGroupCard key={idx} group={group} itemMap={itemMap} />
+      ))}
     </div>
   );
 }
