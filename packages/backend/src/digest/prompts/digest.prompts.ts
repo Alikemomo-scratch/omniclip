@@ -243,3 +243,129 @@ export function splitPromptTemplate(
     phase2: phase2Raw || DEFAULT_PHASE2_PROMPT,
   };
 }
+
+// ── Digest Customization Types & Constants ──
+
+/**
+ * Placeholder one_liner assigned to headlines demoted to categories by the validator.
+ * The generateDigest pipeline replaces this with the source content item's title.
+ */
+export const DEMOTED_HEADLINE_PLACEHOLDER = '(Demoted from headlines)';
+
+export interface PresetTopic {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export const PRESET_TOPICS: PresetTopic[] = [
+  { id: 'ai-ml', label: 'AI / Machine Learning', description: 'AI, large language models, ML tooling' },
+  { id: 'crypto', label: 'Crypto / Web3', description: 'Cryptocurrency, DeFi, blockchain' },
+  { id: 'programming', label: 'Programming / Dev Tools', description: 'Languages, frameworks, open source' },
+  { id: 'startup-vc', label: 'Startups / VC', description: 'Fundraising, product launches, founder news' },
+  { id: 'finance', label: 'Finance / Markets', description: 'Financial markets, macroeconomics' },
+  { id: 'science', label: 'Science / Research', description: 'Scientific research, academic papers' },
+  { id: 'politics', label: 'Politics / Policy', description: 'Policy, regulation, geopolitics' },
+  { id: 'culture', label: 'Culture / Media', description: 'Culture, media, social trends' },
+];
+
+export interface DigestConfig {
+  mode: 'structured' | 'raw';
+  selectedTopics: string[];
+  customTopics: string[];
+  headlineCount: number;
+}
+
+export const DEFAULT_DIGEST_CONFIG: DigestConfig = {
+  mode: 'structured',
+  selectedTopics: ['ai-ml', 'crypto', 'programming', 'startup-vc'],
+  customTopics: [],
+  headlineCount: 5,
+};
+
+/**
+ * Sanitize digest_config from DB or API. Pure function, no exceptions.
+ * Used on both API write (DTO) and DB read (digest generation).
+ */
+export function normalizeDigestConfig(input: unknown): DigestConfig {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { ...DEFAULT_DIGEST_CONFIG };
+  }
+
+  const raw = input as Record<string, unknown>;
+
+  const mode: DigestConfig['mode'] = raw.mode === 'raw' ? 'raw' : 'structured';
+
+  const validTopicIds = new Set(PRESET_TOPICS.map((t) => t.id));
+  let selectedTopics: string[];
+  if (Array.isArray(raw.selectedTopics)) {
+    selectedTopics = [
+      ...new Set(
+        (raw.selectedTopics as unknown[]).filter(
+          (v): v is string => typeof v === 'string' && validTopicIds.has(v),
+        ),
+      ),
+    ];
+  } else {
+    selectedTopics = [...DEFAULT_DIGEST_CONFIG.selectedTopics];
+  }
+
+  let customTopics: string[];
+  if (Array.isArray(raw.customTopics)) {
+    customTopics = [
+      ...new Set(
+        (raw.customTopics as unknown[])
+          .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+          .map((v) => v.trim().slice(0, 100)),
+      ),
+    ].slice(0, 20);
+  } else {
+    customTopics = [];
+  }
+
+  // Only fall back to default selectedTopics when BOTH are empty.
+  // This allows users to deselect all presets while using only custom topics.
+  if (selectedTopics.length === 0 && customTopics.length === 0) {
+    selectedTopics = [...DEFAULT_DIGEST_CONFIG.selectedTopics];
+  }
+
+  const headlineCount =
+    typeof raw.headlineCount === 'number' &&
+    Number.isInteger(raw.headlineCount) &&
+    raw.headlineCount >= 1 &&
+    raw.headlineCount <= 10
+      ? raw.headlineCount
+      : DEFAULT_DIGEST_CONFIG.headlineCount;
+
+  return { mode, selectedTopics, customTopics, headlineCount };
+}
+
+/**
+ * Generate Phase 1 prompt from structured config.
+ * Input MUST be pre-normalized via normalizeDigestConfig.
+ */
+export function buildPhase1PromptFromConfig(config: DigestConfig): string {
+  const allTopics = [
+    ...PRESET_TOPICS.filter((t) => config.selectedTopics.includes(t.id)).map((t) => t.label),
+    ...config.customTopics,
+  ];
+
+  const topicList =
+    allTopics.length > 0
+      ? allTopics.map((t) => `- ${t}`).join('\n')
+      : '- (All topics — no specific filter)';
+
+  return `You are a tech content curator. Classify the following content by topic and select the ${config.headlineCount} most important items as headlines.
+
+Focus your detailed headline selection on these topics (prioritize these for deep-dive analysis):
+${topicList}
+
+Items from other topics should still be classified into categories. For every non-headline item, write a 1–2 sentence summary describing what it covers and why it is noteworthy.
+
+Importance criteria:
+- Major releases or breakthroughs
+- Widely impactful technical changes
+- Significant product launches
+
+For non-headline items, group them by topic and write a concise 1–2 sentence summary for each item.`;
+}
