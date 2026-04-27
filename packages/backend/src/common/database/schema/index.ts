@@ -28,6 +28,7 @@ export const users = pgTable(
     timezone: varchar('timezone', { length: 50 }).notNull().default('Asia/Shanghai'),
     contentRetentionDays: integer('content_retention_days').notNull().default(90),
     digestPrompt: text('digest_prompt'),
+    digestConfig: jsonb('digest_config'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
