@@ -18,7 +18,8 @@ Users need a way to customize what their digest focuses on without needing to un
 1. Let users select **which topics** get detailed analysis (Phase 2 deep-dive).
 2. Let users set the **total number of headline items** for detailed analysis.
 3. Provide both a **structured UI** (topic checkboxes + headline count slider) and a **raw prompt editor** as mutually exclusive modes.
-4. Unselected topics still appear in the digest summary/categories — they are not filtered from the digest entirely.
+4. Unselected topics still appear in the digest summary/categories — they are not filtered from the digest entirely. Each non-headline item receives a 1–2 sentence summary explaining what it covers.
+5. All digest output (headlines, category summaries, trend analysis) is generated in the user's `preferred_language` setting.
 
 ## Chosen Approach
 
@@ -143,18 +144,22 @@ export function buildPhase1PromptFromConfig(config: DigestConfig): string {
 Focus your detailed headline selection on these topics (prioritize these for deep-dive analysis):
 ${topicList}
 
-Items from other topics should still be classified and summarized in categories, but should NOT be selected as headlines unless they are exceptionally significant.
+Items from other topics should still be classified into categories. For every non-headline item, write a 1–2 sentence summary describing what it covers and why it is noteworthy.
 
 Importance criteria:
 - Major releases or breakthroughs
 - Widely impactful technical changes
 - Significant product launches
 
-For non-headline items, write a one-liner summary each.`;
+For non-headline items, group them by topic and write a concise 1–2 sentence summary for each item.`;
 }
 ```
 
 Phase 2 prompt does not change — it always uses the default (or user raw prompt). Topic filtering happens at the Phase 1 level.
+
+### Language Handling
+
+The existing `buildLanguageInstruction(language)` in `DigestService` already appends a language instruction to every LLM call based on the user's `preferred_language` setting. This applies to both Phase 1 and Phase 2 — all output (headlines, category summaries, trend analysis) is generated in the user's preferred language. No additional language logic is needed for this feature.
 
 ### 3. DigestService Integration
 
