@@ -46,6 +46,9 @@ packages/extension/
 *.tgz
 .worktrees/
 
+# POC (archived)
+poc/
+
 # Development docs (design specs, plans)
 docs/superpowers/
 specs/
