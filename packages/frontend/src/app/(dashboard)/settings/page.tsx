@@ -85,7 +85,7 @@ export default function SettingsPage() {
       display_name: formData.get('display_name') as string,
       preferred_language: formData.get('preferred_language') as string,
       digest_frequency: formData.get('digest_frequency') as string,
-      digest_time: formData.get('digest_time') as string,
+      digest_time: (formData.get('digest_time') as string).slice(0, 5),
       timezone: formData.get('timezone') as string,
       content_retention_days: Number(formData.get('content_retention_days')),
       digest_config: digestConfig,
