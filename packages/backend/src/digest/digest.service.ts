@@ -742,18 +742,31 @@ export class DigestService {
     const systemPrompt = 'You are an AI content curator that generates structured JSON responses.';
 
     if (this.gemini) {
-      try {
-        const model = this.gemini.getGenerativeModel({
-          model: 'gemini-2.5-flash',
-          systemInstruction: systemPrompt,
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
-        });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-      } catch (error) {
-        this.logger.error(`Gemini generation failed: ${error}`);
-        // If OpenAI is available, fall through to it. Otherwise, throw.
-        if (!this.openai) throw error;
+      const model = this.gemini.getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        systemInstruction: systemPrompt,
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+      });
+
+      const maxGeminiRetries = 3;
+      for (let attempt = 0; attempt <= maxGeminiRetries; attempt++) {
+        try {
+          const result = await model.generateContent(prompt);
+          return result.response.text();
+        } catch (error) {
+          const isTransient = this.isTransientGeminiError(error);
+          if (isTransient && attempt < maxGeminiRetries) {
+            const delay = 3000 * Math.pow(2, attempt); // 3s, 6s, 12s
+            this.logger.warn(
+              `Gemini transient error (attempt ${attempt + 1}/${maxGeminiRetries + 1}), retrying in ${delay}ms`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          this.logger.error(`Gemini generation failed after ${attempt + 1} attempt(s): ${error}`);
+          if (!this.openai) throw error;
+          break;
+        }
       }
     }
 
@@ -773,6 +786,11 @@ export class DigestService {
     // No API keys configured at all — return stub for development
     this.logger.warn('No AI API key configured; returning stub response');
     return this.stubAIResponse(prompt);
+  }
+
+  private isTransientGeminiError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /503|429|service unavailable|overloaded|high demand|resource exhausted/i.test(message);
   }
 
   /**
