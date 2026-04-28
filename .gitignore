@@ -45,3 +45,6 @@ packages/extension/
 # Misc
 *.tgz
 .worktrees/
+
+# Development docs (design specs, plans)
+docs/superpowers/
