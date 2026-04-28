@@ -15,6 +15,10 @@ import {
   DEFAULT_PHASE2_PROMPT,
   PHASE1_JSON_SCHEMA,
   PHASE2_JSON_SCHEMA,
+  normalizeDigestConfig,
+  buildPhase1PromptFromConfig,
+  DEMOTED_HEADLINE_PLACEHOLDER,
+  type DigestConfig,
   type ContentItemForDigest,
   type Phase1Result,
   type DigestOutput,
@@ -110,9 +114,9 @@ export class DigestService {
         data: { stage: 'fetching', progress: 0.1, item_count: items.length },
       });
 
-      // 4. Fetch user's digest_prompt
-      const userPrompt = await this.fetchUserDigestPrompt(userId);
-      const { phase1: phase1Prompt, phase2: phase2Prompt } = splitPromptTemplate(userPrompt);
+      // 4. Fetch user settings and resolve prompts
+      const { digestConfig, digestPrompt } = await this.fetchUserSettings(userId);
+      const { phase1: phase1Prompt, phase2: phase2Prompt } = this.resolvePrompts(digestConfig, digestPrompt);
 
       // 5. Build source data lookup map
       const sourceMap = new Map(items.map((item) => [item.id, item]));
@@ -129,6 +133,7 @@ export class DigestService {
         items,
         validIds,
         language,
+        digestConfig.headlineCount,
       );
 
       if (!phase1Result) {
@@ -139,6 +144,16 @@ export class DigestService {
           data: { digest_id: digestId, error: 'Phase 1 failed: could not classify content' },
         });
         throw new Error('Phase 1 failed: could not classify content');
+      }
+
+      // Replace demoted headline placeholders with source content titles
+      for (const cat of phase1Result.categories) {
+        for (const catItem of cat.items) {
+          if (catItem.one_liner === DEMOTED_HEADLINE_PLACEHOLDER) {
+            const source = sourceMap.get(catItem.item_id);
+            catItem.one_liner = source?.title ?? catItem.one_liner;
+          }
+        }
       }
 
       onProgress?.({
@@ -469,15 +484,37 @@ export class DigestService {
     });
   }
 
-  private async fetchUserDigestPrompt(userId: string): Promise<string | null> {
+  private async fetchUserSettings(userId: string): Promise<{
+    digestConfig: DigestConfig;
+    digestPrompt: string | null;
+  }> {
     return withRlsContext(this.db, userId, async (tx) => {
       const [row] = await tx
-        .select({ digestPrompt: users.digestPrompt })
+        .select({
+          digestConfig: users.digestConfig,
+          digestPrompt: users.digestPrompt,
+        })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
-      return row?.digestPrompt ?? null;
+      return {
+        digestConfig: normalizeDigestConfig(row?.digestConfig),
+        digestPrompt: row?.digestPrompt ?? null,
+      };
     });
+  }
+
+  private resolvePrompts(
+    config: DigestConfig,
+    rawPrompt: string | null,
+  ): { phase1: string; phase2: string } {
+    if (config.mode === 'raw') {
+      return splitPromptTemplate(rawPrompt);
+    }
+    return {
+      phase1: buildPhase1PromptFromConfig(config),
+      phase2: DEFAULT_PHASE2_PROMPT,
+    };
   }
 
   // ── Phase 1: Screen & Classify ──
@@ -492,23 +529,21 @@ export class DigestService {
     items: ContentItemForDigest[],
     validIds: Set<string>,
     language: string,
+    headlineCount?: number,
   ): Promise<Phase1Result | null> {
     const formattedItems = formatContentItems(items, 500);
     const contentBlock = formattedItems.join('\n\n');
     const langInstruction = this.buildLanguageInstruction(language);
 
     try {
-      // Try user prompt
       const userFullPrompt = this.buildPhase1FullPrompt(userPhase1Prompt, langInstruction, contentBlock);
-      const userResult = await this.tryPhase1(userFullPrompt, validIds);
+      const userResult = await this.tryPhase1(userFullPrompt, validIds, headlineCount);
       if (userResult) return userResult;
 
-      // User prompt validation failed — retry with default
-      this.logger.warn('Phase 1 user prompt failed validation, retrying with default prompt');
+      this.logger.warn('Phase 1 prompt failed validation, retrying with default prompt');
       const defaultFullPrompt = this.buildPhase1FullPrompt(DEFAULT_PHASE1_PROMPT, langInstruction, contentBlock);
-      return this.tryPhase1(defaultFullPrompt, validIds);
+      return this.tryPhase1(defaultFullPrompt, validIds, headlineCount);
     } catch (error) {
-      // Transport exhaustion (all retries in callAIWithRetry failed) — phase fails
       this.logger.error(`Phase 1 transport failure after all retries: ${error}`);
       return null;
     }
@@ -525,22 +560,22 @@ export class DigestService {
   private async tryPhase1(
     prompt: string,
     validIds: Set<string>,
+    headlineCount?: number,
   ): Promise<Phase1Result | null> {
-    // Transport errors from callAIWithRetry propagate to executePhase1
     const response = await this.callAIWithRetry(prompt);
-    const validation = validatePhase1Response(response, validIds);
+    const validation = validatePhase1Response(response, validIds, headlineCount);
     if (!validation.ok) {
-      // Schema/parse failure — return null to trigger default prompt fallback
       this.logger.warn(`Phase 1 validation failed: ${validation.error}`);
       return null;
     }
-    // Log warning if headlines were capped (spec: headline cap warning)
-    if (validation.droppedHeadlineCount && validation.droppedHeadlineCount > 0) {
+    if (validation.demotedHeadlineCount > 0) {
       this.logger.warn(
-        `Phase 1: ${validation.droppedHeadlineCount} headlines exceeded cap of 10, dropped`,
+        `Phase 1: ${validation.demotedHeadlineCount} headlines exceeded cap of ${headlineCount ?? 10}, demoted to categories`,
       );
     }
-    return deduplicatePhase1Result(validation.value, validation.allHeadlineIds);
+    // Use post-cap headline IDs only — demoted items must remain in categories
+    const headlineIds = new Set(validation.value.headlines.map((h) => h.item_id));
+    return deduplicatePhase1Result(validation.value, headlineIds);
   }
 
   // ── Phase 2: Deep-dive Headlines ──
