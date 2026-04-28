@@ -130,6 +130,14 @@ Not yet. OmniClip is in active early development (v0.1.0). Expect breaking chang
 
 ---
 
+## Roadmap
+
+- [ ] **Digest delivery** — Push digests to Email, Feishu / Lark, Slack, Telegram, and other channels
+- [ ] **More platforms** — Hacker News, Reddit, Bilibili, Xiaohongshu, RSS, and community-contributed connectors
+- [ ] **Smart recommendations** — Surface content you might have missed based on your reading history, archived items, and interest graph
+
+---
+
 ## Contributing
 
 Contributions welcome.
