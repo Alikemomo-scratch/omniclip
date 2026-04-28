@@ -15,6 +15,10 @@ import { DRIZZLE } from '../../src/common/database/database.constants';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
 import * as schema from '../../src/common/database/schema';
 
+/** Test-only credentials for the ephemeral Testcontainer PostgreSQL role (not a real secret). */
+const TEST_APP_ROLE = 'app_user';
+const TEST_APP_PASSWORD = `test_${Date.now().toString(36)}`;
+
 let pgContainer: StartedPostgreSqlContainer;
 let pool: Pool;
 let db: NodePgDatabase<typeof schema>;
@@ -67,7 +71,7 @@ export async function startTestDatabase(): Promise<{
     DO $$
     BEGIN
       IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
-        CREATE ROLE app_user LOGIN PASSWORD 'app_pass';
+        CREATE ROLE app_user LOGIN PASSWORD '${TEST_APP_PASSWORD}';
       END IF;
     END
     $$;
@@ -78,8 +82,8 @@ export async function startTestDatabase(): Promise<{
 
   // Build a connection string for the app_user role
   const url = new URL(connectionString);
-  url.username = 'app_user';
-  url.password = 'app_pass';
+  url.username = TEST_APP_ROLE;
+  url.password = TEST_APP_PASSWORD;
   const appConnectionString = url.toString();
 
   return { container: pgContainer, connectionString: appConnectionString, pool, db };
