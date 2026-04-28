@@ -17,7 +17,7 @@ Verify before proceeding:
 ## Step 1: Clone & Install
 
 ```bash
-git clone https://github.com/MomoP32/omniclip.git
+git clone https://github.com/Alikemomo-scratch/omniclip.git
 cd omniclip
 pnpm install
 pnpm build
