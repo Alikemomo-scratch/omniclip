@@ -48,6 +48,7 @@ const mockUser = {
   digestTime: '08:00',
   timezone: 'Asia/Shanghai',
   contentRetentionDays: 90,
+  digestPrompt: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 };
@@ -77,6 +78,7 @@ describe('UsersService', () => {
       expect(result.display_name).toBe('Test User');
       expect(result.preferred_language).toBe('zh');
       expect(result.digest_frequency).toBe('daily');
+      expect(result.digest_prompt).toBeNull();
     });
 
     it('should throw NotFoundException for missing user', async () => {
@@ -115,6 +117,21 @@ describe('UsersService', () => {
       await expect(service.update('missing', { display_name: 'Name' })).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should update user digest_prompt', async () => {
+      const customPrompt = 'My custom Phase 1\n---PHASE_SEPARATOR---\nMy Phase 2';
+      mockDb._chainable.returning.mockResolvedValueOnce([{ ...mockUser, digestPrompt: customPrompt }]);
+
+      const result = await service.update('user-1', { digest_prompt: customPrompt });
+      expect(result.digest_prompt).toBe(customPrompt);
+    });
+
+    it('should clear digest_prompt when set to null', async () => {
+      mockDb._chainable.returning.mockResolvedValueOnce([{ ...mockUser, digestPrompt: null }]);
+
+      const result = await service.update('user-1', { digest_prompt: null });
+      expect(result.digest_prompt).toBeNull();
     });
   });
 });
