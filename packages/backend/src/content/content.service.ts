@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { eq, and, gte, lte, or, ilike, sql, count, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, gte, lte, or, ilike, sql, count, isNull, isNotNull, inArray } from 'drizzle-orm';
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
@@ -254,6 +254,36 @@ export class ContentService {
       }
 
       await tx.delete(contentItems).where(eq(contentItems.id, itemId));
+    });
+  }
+
+  /**
+   * Batch delete content items by IDs (RLS-scoped).
+   * Returns the number of actually deleted rows.
+   */
+  async removeMany(userId: string, ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    return withRlsContext(this.db, userId, async (tx) => {
+      const result = await tx
+        .delete(contentItems)
+        .where(inArray(contentItems.id, ids))
+        .returning({ id: contentItems.id });
+
+      return result.length;
+    });
+  }
+
+  async removeByFilter(userId: string, query: ContentQueryDto): Promise<number> {
+    return withRlsContext(this.db, userId, async (tx) => {
+      const conditions = this.buildWhereConditions(query);
+
+      const result = await tx
+        .delete(contentItems)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .returning({ id: contentItems.id });
+
+      return result.length;
     });
   }
 }

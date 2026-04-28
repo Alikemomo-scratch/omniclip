@@ -1,10 +1,12 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
   Query,
+  Body,
   UseGuards,
   Request,
   HttpCode,
@@ -12,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ContentService } from './content.service';
-import { ContentQueryDto } from './dto';
+import { ContentQueryDto, BatchDeleteDto } from './dto';
 
 @Controller('content')
 @UseGuards(JwtAuthGuard)
@@ -48,6 +50,26 @@ export class ContentController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     await this.contentService.unarchive(req.user.userId, id);
+  }
+
+  @Post('batch-delete')
+  @HttpCode(200)
+  async batchDelete(
+    @Request() req: { user: { userId: string } },
+    @Body() dto: BatchDeleteDto,
+  ) {
+    const deleted = await this.contentService.removeMany(req.user.userId, dto.ids);
+    return { deleted };
+  }
+
+  @Post('batch-delete-by-filter')
+  @HttpCode(200)
+  async batchDeleteByFilter(
+    @Request() req: { user: { userId: string } },
+    @Body() query: ContentQueryDto,
+  ) {
+    const deleted = await this.contentService.removeByFilter(req.user.userId, query);
+    return { deleted };
   }
 
   @Delete(':id')
