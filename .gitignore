@@ -53,3 +53,8 @@ poc/
 docs/superpowers/
 specs/
 XHS_RESEARCH_FINDINGS.md
+
+# AI development tooling
+.opencode/
+.specify/
+AGENTS.md
