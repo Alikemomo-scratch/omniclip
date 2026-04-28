@@ -8,12 +8,12 @@ In an era of algorithmic feeds that chase the latest trends, endless scrolling, 
 
 ### Why the name "OmniClip"?
 
-- **Omni**: Meaning "all" or "universal." It represents the ability to aggregate content from across the vast, fragmented web—gathering from any platform you care about.
-- **Clip**: Like a newspaper clipping. It represents the act of cutting out the noise, extracting only the most valuable, high-signal information, and saving it into a clean, readable format.
+- **Omni**: Meaning "all" or "universal." Aggregate content from across the vast, fragmented web.
+- **Clip**: Like a newspaper clipping. Cut out the noise, keep only the high-signal information.
 
 ---
 
-## Supported Platforms & Deep Filtering
+## Supported Platforms
 
 OmniClip completely ignores algorithmic recommendations (e.g. "For You" or "Discover" pages) across all platforms.
 
@@ -25,36 +25,11 @@ OmniClip completely ignores algorithmic recommendations (e.g. "For You" or "Disc
 
 ---
 
-## Quick Start
-
-```bash
-git clone https://github.com/MomoP32/omniclip.git
-cd omniclip
-pnpm install
-pnpm build
-docker-compose up -d
-cp packages/backend/.env.example packages/backend/.env
-cp packages/frontend/.env.example packages/frontend/.env
-# Edit packages/backend/.env — add your AI API key (see docs below)
-pnpm --filter backend db:migrate
-pnpm dev
-```
-
-Then open `http://localhost:3000`, register an account, and connect your platforms.
-
-### Prerequisites
-
-- **Node.js 22 LTS** (`node -v` should show v22.x)
-- **pnpm 9.x** (`npm install -g pnpm`)
-- **Docker & Docker Compose** (for PostgreSQL and Redis)
-
----
-
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Setup Guide](docs/setup.md) | Full step-by-step installation and configuration |
+| [Setup Guide](docs/setup.md) | Full installation and configuration guide (for AI agents) |
 | [Platform Keys Setup](docs/platform-keys-setup.md) | How to obtain API keys / credentials for each platform |
 
 ---

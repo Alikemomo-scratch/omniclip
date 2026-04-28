@@ -1,18 +1,20 @@
-# OmniClip Setup Guide
+# OmniClip Setup Guide (For AI Agents)
 
-Full step-by-step instructions for setting up OmniClip on your local machine.
+This document is written for AI assistants. Follow these steps sequentially. **Do not run blocking commands** (`pnpm dev`, `docker-compose logs -f`, etc.) — they will hang your terminal.
 
 ---
 
 ## Prerequisites
 
-- **Node.js 22 LTS** (`node -v` should show v22.x)
-- **pnpm 9.x** (`npm install -g pnpm`)
-- **Docker & Docker Compose** (for running PostgreSQL and Redis)
+Verify before proceeding:
+
+- **Node.js 22 LTS** — `node -v` should show v22.x
+- **pnpm 9.x** — `pnpm -v` should show 9.x (install: `npm install -g pnpm`)
+- **Docker & Docker Compose** — `docker --version` and `docker compose version`
 
 ---
 
-## Step 1: Clone the Repository & Build
+## Step 1: Clone & Install
 
 ```bash
 git clone https://github.com/MomoP32/omniclip.git
@@ -21,98 +23,73 @@ pnpm install
 pnpm build
 ```
 
-## Step 2: Start the Database and Redis
-
-OmniClip requires PostgreSQL for data storage and Redis for queues/rate-limiting.
+## Step 2: Start Infrastructure
 
 ```bash
 docker-compose up -d
 ```
 
-This starts PostgreSQL (port 5432) and Redis (port 6379) in the background.
+Wait for PostgreSQL to be ready before proceeding:
+
+```bash
+until pg_isready -h localhost -p 5432 2>/dev/null; do sleep 1; done
+```
 
 ## Step 3: Configure Environment Variables
-
-Copy the example environment files:
 
 ```bash
 cp packages/backend/.env.example packages/backend/.env
 cp packages/frontend/.env.example packages/frontend/.env
 ```
 
-Open `packages/backend/.env` and configure the following:
+**Ask the user** for their preferred AI API Key (`OPENAI_API_KEY` or `GEMINI_API_KEY`), then inject it into `packages/backend/.env`.
 
-### AI API Key (Required)
+If the user wants YouTube integration, also ask for:
+- `YOUTUBE_CLIENT_ID`
+- `YOUTUBE_CLIENT_SECRET`
 
-Add your OpenAI or Gemini API key for the AI Digest feature:
+See [Platform Keys Setup Guide](platform-keys-setup.md) for how to obtain each credential.
 
-```env
-OPENAI_API_KEY=sk-your-openai-api-key-here
-# OR
-GEMINI_API_KEY=your-gemini-api-key-here
-```
+> Leave `DATABASE_URL`, `REDIS_URL`, and `YOUTUBE_REDIRECT_URI` as their defaults.
 
-> If both keys are set, OpenAI takes priority.
-
-### YouTube OAuth (Optional)
-
-Required only if you plan to connect YouTube. You'll need a Google Cloud Project with the YouTube Data API v3 enabled:
-
-```env
-YOUTUBE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
-YOUTUBE_CLIENT_SECRET=your-google-client-secret
-YOUTUBE_REDIRECT_URI=http://localhost:3001/api/v1/auth/youtube/callback
-```
-
-> For detailed step-by-step instructions on obtaining each key, see the **[Platform Keys Setup Guide](platform-keys-setup.md)**.
-
-Leave `DATABASE_URL` and `REDIS_URL` as their defaults if you are using the provided `docker-compose.yml`.
-
-## Step 4: Initialize the Database
-
-Run the database migrations to create all necessary tables:
+## Step 4: Run Database Migrations
 
 ```bash
 pnpm --filter backend db:migrate
 ```
 
-## Step 5: Start the Application
+## Step 5: Handoff to User
+
+**Do not** run `pnpm dev` — it blocks the terminal.
+
+Instruct the user to run the following in their own terminal:
 
 ```bash
 pnpm dev
 ```
 
-- **Frontend**: `http://localhost:3000`
-- **Backend API**: `http://localhost:3001`
+Then guide them to:
 
-## Step 6: Connect Your Platforms
+1. Open `http://localhost:3000`
+2. Register an account and log in
+3. Go to the **Connections** page
+4. Add their platforms:
 
-1. Open `http://localhost:3000` in your browser.
-2. Register a new account and log in.
-3. Navigate to the **Connections** page.
-4. Add your platforms:
+| Platform | Credential Type | How to Obtain |
+|----------|----------------|---------------|
+| **GitHub** | Personal Access Token (Classic) | [Guide](platform-keys-setup.md#1-github--personal-access-token-pat) |
+| **YouTube** | OAuth popup (automatic) | Requires .env setup in Step 3 — [Guide](platform-keys-setup.md#3-youtube--google-cloud-oauth-20) |
+| **Twitter/X** | Cookies (`auth_token` + `ct0`) | [Guide](platform-keys-setup.md#2-twitter--x--浏览器-cookies) |
 
-| Platform | Credential Type | Where to Configure |
-|----------|----------------|--------------------|
-| **GitHub** | Personal Access Token (Classic) | Connections page in OmniClip |
-| **YouTube** | OAuth (browser popup) | Connections page (requires .env setup first) |
-| **Twitter/X** | Cookies (`auth_token` + `ct0`) | Connections page in OmniClip |
-
-For detailed instructions on obtaining each credential, see the **[Platform Keys Setup Guide](platform-keys-setup.md)**.
-
-Each connection can be configured with a custom **sync interval** (e.g., every 1 hour, every 1 day).
+Each connection supports a configurable **sync interval** (e.g., every 1 hour, every 1 day).
 
 ---
 
-## Instructions for AI Agents
+## Troubleshooting
 
-If you are an AI assistant tasked with helping the user set up this project, **do not run a single blocking command**. Follow these steps:
-
-1. **Clone:** Clone the repository and `cd` into it if not already there.
-2. **Dependencies:** Run `pnpm install`.
-3. **Build:** Run `pnpm build` to compile the frontend, backend, and shared packages.
-4. **Environment Files:** Copy `.env.example` to `.env` in both `packages/backend` and `packages/frontend`.
-5. **API Key:** Ask the user for their preferred AI API Key (`OPENAI_API_KEY` or `GEMINI_API_KEY`). Once provided, inject it into `packages/backend/.env`.
-6. **Infrastructure:** Run `docker-compose up -d` to start PostgreSQL and Redis. Use `pg_isready` or retry logic to ensure the database is accepting connections.
-7. **Database Migration:** Once the DB is ready, run `pnpm --filter backend db:migrate`.
-8. **Handoff to User:** Do **not** run `pnpm dev` yourself as it will block your terminal. Instruct the user to run it in their own terminal, then guide them to Step 6 above.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `pnpm build` fails | Missing Node.js 22 | `nvm install 22 && nvm use 22` |
+| DB migration fails | PostgreSQL not ready | Re-run `pg_isready` check, then retry |
+| Connection shows `unhealthy` | Expired credentials | Re-enter credentials on Connections page |
+| AI digest returns empty | Missing API key in `.env` | Add `OPENAI_API_KEY` or `GEMINI_API_KEY` |
