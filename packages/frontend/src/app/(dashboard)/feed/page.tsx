@@ -13,6 +13,8 @@ export default function FeedPage() {
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectAllMode, setSelectAllMode] = useState<'none' | 'loaded' | 'all'>('none');
   const queryClient = useQueryClient();
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,29 @@ export default function FeedPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content'] }),
   });
 
+  const batchDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => contentApi.batchDelete(ids),
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      setSelectAllMode('none');
+      queryClient.invalidateQueries({ queryKey: ['content'] });
+    },
+  });
+
+  const batchDeleteByFilterMutation = useMutation({
+    mutationFn: () =>
+      contentApi.batchDeleteByFilter({
+        platform: platform || undefined,
+        search: search || undefined,
+        archived: showArchived || undefined,
+      }),
+    onSuccess: () => {
+      setSelectedIds(new Set());
+      setSelectAllMode('none');
+      queryClient.invalidateQueries({ queryKey: ['content'] });
+    },
+  });
+
   // Infinite scroll observer
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -77,8 +102,49 @@ export default function FeedPage() {
     setSearch(searchInput);
   }
 
-  const allItems = data?.pages.flatMap((page) => page.items) ?? [];
+  const allItems = (() => {
+    const items = data?.pages.flatMap((page) => page.items) ?? [];
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  })();
   const total = data?.pages[0]?.pagination.total ?? 0;
+
+  function toggleSelect(id: string) {
+    setSelectAllMode('none');
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === allItems.length && selectAllMode !== 'none') {
+      setSelectedIds(new Set());
+      setSelectAllMode('none');
+    } else {
+      setSelectedIds(new Set(allItems.map((i) => i.id)));
+      setSelectAllMode('loaded');
+    }
+  }
+
+  function handleBatchDelete() {
+    const isDeleteAll = selectAllMode === 'all';
+    const count = isDeleteAll ? total : selectedIds.size;
+    if (count === 0) return;
+    if (!confirm(`确认删除${isDeleteAll ? '全部' : '选中的'} ${count} 条内容？此操作不可恢复。`)) return;
+
+    if (isDeleteAll) {
+      batchDeleteByFilterMutation.mutate();
+    } else {
+      batchDeleteMutation.mutate(Array.from(selectedIds));
+    }
+  }
 
   return (
     <div>
@@ -165,13 +231,67 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Results count */}
+      {/* Results count + batch actions */}
       {!isLoading && (
-        <p className="text-sm text-gray-500 mb-4">
-          {total} {total === 1 ? 'item' : 'items'}
-          {search && ` matching "${search}"`}
-          {platform && ` from ${platform}`}
-        </p>
+        <div className="mb-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {total} {total === 1 ? 'item' : 'items'}
+              {search && ` matching "${search}"`}
+              {platform && ` from ${platform}`}
+            </p>
+            {allItems.length > 0 && (
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={allItems.length > 0 && selectedIds.size === allItems.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  全选
+                </label>
+                {(selectedIds.size > 0 || selectAllMode === 'all') && (
+                  <button
+                    onClick={handleBatchDelete}
+                    disabled={batchDeleteMutation.isPending || batchDeleteByFilterMutation.isPending}
+                    className="px-3 py-1.5 text-sm text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {batchDeleteMutation.isPending || batchDeleteByFilterMutation.isPending
+                      ? '删除中...'
+                      : selectAllMode === 'all'
+                        ? `删除全部 (${total})`
+                        : `删除选中 (${selectedIds.size})`}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {selectAllMode === 'loaded' && total > allItems.length && (
+            <div className="mt-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 text-center">
+              已选中当前已加载的 {allItems.length} 条内容。
+              <button
+                onClick={() => setSelectAllMode('all')}
+                className="ml-1 font-medium text-blue-600 hover:text-blue-800 underline"
+              >
+                选择全部 {total} 条
+              </button>
+            </div>
+          )}
+
+          {selectAllMode === 'all' && (
+            <div className="mt-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 text-center">
+              已选择全部 {total} 条匹配内容。
+              <button
+                onClick={() => { setSelectAllMode('none'); setSelectedIds(new Set()); }}
+                className="ml-1 font-medium text-blue-600 hover:text-blue-800 underline"
+              >
+                取消选择
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Loading state */}
@@ -203,6 +323,8 @@ export default function FeedPage() {
             key={item.id}
             item={item}
             showArchived={showArchived}
+            selected={selectedIds.has(item.id)}
+            onToggleSelect={() => toggleSelect(item.id)}
             onArchive={(id) => archiveMutation.mutate(id)}
             onUnarchive={(id) => unarchiveMutation.mutate(id)}
             onDelete={(id) => deleteMutation.mutate(id)}
@@ -229,12 +351,16 @@ export default function FeedPage() {
 function ContentCard({
   item,
   showArchived,
+  selected,
+  onToggleSelect,
   onArchive,
   onUnarchive,
   onDelete,
 }: {
   item: ContentItem;
   showArchived: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onDelete: (id: string) => void;
@@ -248,9 +374,16 @@ function ContentCard({
   const badgeClass = platformColors[item.platform] || 'bg-gray-200 text-gray-800';
 
   return (
-    <div className="p-5 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+    <div className={`p-5 bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow ${selected ? 'ring-2 ring-blue-500 border-blue-300' : ''}`}>
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            className="mt-1 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+          />
+          <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${badgeClass}`}>
               {item.platform}
@@ -292,6 +425,7 @@ function ContentCard({
                 AI Summary
               </span>
             )}
+          </div>
           </div>
         </div>
 

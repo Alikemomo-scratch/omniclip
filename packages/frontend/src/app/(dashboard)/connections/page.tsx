@@ -106,7 +106,7 @@ export default function ConnectionsPage() {
     // Redirect to backend OAuth endpoint — the backend will redirect to the provider's consent screen
     const token = getToken();
     // We need to pass the JWT token as a query parameter since the redirect won't have cookies
-    window.location.href = `${API_BASE}/auth/${platformId}?token=${encodeURIComponent(token || '')}`;
+    window.location.href = `${API_BASE}/auth/${platformId}?token=${encodeURIComponent(token || '')}&sync_interval=${syncInterval}`;
   }
 
   function handleAddConnection(e: React.FormEvent) {

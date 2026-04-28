@@ -327,6 +327,14 @@ export const contentApi = {
   delete(id: string): Promise<void> {
     return apiClient.delete(`/content/${id}`);
   },
+
+  batchDelete(ids: string[]): Promise<{ deleted: number }> {
+    return apiClient.post('/content/batch-delete', { ids });
+  },
+
+  batchDeleteByFilter(query: Omit<ContentQuery, 'page' | 'limit'>): Promise<{ deleted: number }> {
+    return apiClient.post('/content/batch-delete-by-filter', query);
+  },
 };
 
 // ====================================
