@@ -48,3 +48,5 @@ packages/extension/
 
 # Development docs (design specs, plans)
 docs/superpowers/
+specs/
+XHS_RESEARCH_FINDINGS.md
