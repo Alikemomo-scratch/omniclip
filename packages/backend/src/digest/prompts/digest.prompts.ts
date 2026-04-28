@@ -148,9 +148,9 @@ export function formatContentItems(
   return items.map((item, index) => {
     const lines: string[] = [];
 
-    // Header line
+    // Header line — use 1-based index as item identifier (LLMs can't reliably copy UUIDs)
     lines.push(
-      `[${index + 1}] id:${item.id} | ${item.platform}/${item.content_type} | ${item.published_at}`,
+      `[${index + 1}] ${item.platform}/${item.content_type} | ${item.published_at}`,
     );
 
     // Optional fields
@@ -179,6 +179,16 @@ const PHASE_SEPARATOR = '---PHASE_SEPARATOR---';
 
 export const DEFAULT_PHASE1_PROMPT = `You are a tech content curator. Classify the following content by topic and select the 3-5 most important items as headlines.
 
+FILTERING — Discard low-value items entirely (do NOT include them in headlines or categories):
+- Emoji-only or single-word replies (e.g. "😂", "lol", "nice")
+- Retweets / reposts with no added commentary
+- Duplicate or near-duplicate content (keep the most detailed version)
+- Automated bot posts, spam, or promotional fluff with no substance
+
+LIMITS:
+- Select 3-5 headline items for deep-dive analysis.
+- Include up to 20 of the most noteworthy non-headline items across all categories. Skip the rest.
+
 Importance criteria:
 - Major releases or breakthroughs in AI/LLM
 - Widely impactful technical changes
@@ -193,15 +203,34 @@ export const DEFAULT_PHASE2_PROMPT = `You are a senior tech journalist. Write de
 
 // ── JSON Schema Strings (appended by system to LLM prompts) ──
 
-export const PHASE1_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences):
+export const PHASE1_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences).
+Use the bracket number [N] from the input as item_id. Do NOT invent IDs.
+
 {
-  "headlines": [{ "item_id": "uuid-string", "topic": "Topic Name" }],
-  "categories": [{ "topic": "Topic Name", "items": [{ "item_id": "uuid-string", "one_liner": "One sentence summary" }] }],
-  "trend_analysis": "Cross-platform trend analysis paragraph"
+  "headlines": [
+    { "item_id": "1", "topic": "AI / Machine Learning" }
+  ],
+  "categories": [
+    {
+      "topic": "Programming / Dev Tools",
+      "items": [
+        { "item_id": "5", "one_liner": "Your 1-2 sentence summary of this specific item" }
+      ]
+    }
+  ],
+  "trend_analysis": "Your cross-platform trend analysis paragraph based on all the content"
 }`;
 
-export const PHASE2_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences):
-[{ "item_id": "uuid-string", "title": "Headline Title", "analysis": "Detailed newspaper-style analysis paragraph" }]`;
+export const PHASE2_JSON_SCHEMA = `Respond in this exact JSON format (no markdown, no code fences).
+Use the bracket number [N] from the input as item_id. Do NOT invent IDs.
+
+[
+  {
+    "item_id": "1",
+    "title": "Your compelling headline title summarizing this item",
+    "analysis": "Your detailed newspaper-style analysis paragraph covering what it is, why it matters, and its impact"
+  }
+]`;
 
 // ── PromptSplitter ──
 
@@ -274,6 +303,7 @@ export interface DigestConfig {
   selectedTopics: string[];
   customTopics: string[];
   headlineCount: number;
+  summaryCount: number;
 }
 
 export const DEFAULT_DIGEST_CONFIG: DigestConfig = {
@@ -281,6 +311,7 @@ export const DEFAULT_DIGEST_CONFIG: DigestConfig = {
   selectedTopics: ['ai-ml', 'crypto', 'programming', 'startup-vc'],
   customTopics: [],
   headlineCount: 5,
+  summaryCount: 20,
 };
 
 /**
@@ -337,7 +368,15 @@ export function normalizeDigestConfig(input: unknown): DigestConfig {
       ? raw.headlineCount
       : DEFAULT_DIGEST_CONFIG.headlineCount;
 
-  return { mode, selectedTopics, customTopics, headlineCount };
+  const summaryCount =
+    typeof raw.summaryCount === 'number' &&
+    Number.isInteger(raw.summaryCount) &&
+    raw.summaryCount >= 5 &&
+    raw.summaryCount <= 50
+      ? raw.summaryCount
+      : DEFAULT_DIGEST_CONFIG.summaryCount;
+
+  return { mode, selectedTopics, customTopics, headlineCount, summaryCount };
 }
 
 /**
@@ -359,6 +398,16 @@ export function buildPhase1PromptFromConfig(config: DigestConfig): string {
 
 Focus your detailed headline selection on these topics (prioritize these for deep-dive analysis):
 ${topicList}
+
+FILTERING — Discard low-value items entirely (do NOT include them in headlines or categories):
+- Emoji-only or single-word replies (e.g. "😂", "lol", "nice")
+- Retweets / reposts with no added commentary
+- Duplicate or near-duplicate content (keep the most detailed version)
+- Automated bot posts, spam, or promotional fluff with no substance
+
+LIMITS:
+- Select exactly ${config.headlineCount} headline items for deep-dive analysis.
+- Include up to ${config.summaryCount} of the most noteworthy non-headline items across all categories. Skip the rest.
 
 Items from other topics should still be classified into categories. For every non-headline item, write a 1–2 sentence summary describing what it covers and why it is noteworthy.
 

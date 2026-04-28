@@ -14,6 +14,7 @@ describe('buildPhase1PromptFromConfig', () => {
       selectedTopics: ['ai-ml', 'crypto'],
       customTopics: [],
       headlineCount: 5,
+      summaryCount: 20,
     };
     const prompt = buildPhase1PromptFromConfig(config);
     expect(prompt).toContain('AI / Machine Learning');
@@ -27,6 +28,7 @@ describe('buildPhase1PromptFromConfig', () => {
       selectedTopics: [],
       customTopics: ['DeFi Safety', 'ZK Proofs'],
       headlineCount: 3,
+      summaryCount: 20,
     };
     const prompt = buildPhase1PromptFromConfig(config);
     expect(prompt).toContain('DeFi Safety');
@@ -39,6 +41,7 @@ describe('buildPhase1PromptFromConfig', () => {
       selectedTopics: ['ai-ml'],
       customTopics: ['Custom Topic'],
       headlineCount: 5,
+      summaryCount: 20,
     };
     const prompt = buildPhase1PromptFromConfig(config);
     expect(prompt).toContain('AI / Machine Learning');
@@ -51,10 +54,24 @@ describe('buildPhase1PromptFromConfig', () => {
       selectedTopics: ['ai-ml'],
       customTopics: [],
       headlineCount: 7,
+      summaryCount: 20,
     };
     const prompt = buildPhase1PromptFromConfig(config);
     expect(prompt).toContain('7');
     expect(prompt).toContain('most important items as headlines');
+  });
+
+  it('includes summaryCount limit in prompt', () => {
+    const config: DigestConfig = {
+      mode: 'structured',
+      selectedTopics: ['ai-ml'],
+      customTopics: [],
+      headlineCount: 5,
+      summaryCount: 15,
+    };
+    const prompt = buildPhase1PromptFromConfig(config);
+    expect(prompt).toContain('15');
+    expect(prompt).toContain('non-headline');
   });
 
   it('shows no-filter message when no topics selected', () => {
@@ -63,6 +80,7 @@ describe('buildPhase1PromptFromConfig', () => {
       selectedTopics: [],
       customTopics: [],
       headlineCount: 5,
+      summaryCount: 20,
     };
     const prompt = buildPhase1PromptFromConfig(config);
     expect(prompt).toContain('All topics');

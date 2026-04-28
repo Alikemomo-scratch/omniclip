@@ -26,6 +26,7 @@ describe('normalizeDigestConfig', () => {
       selectedTopics: ['ai-ml', 'crypto'],
       customTopics: ['DeFi Safety'],
       headlineCount: 3,
+      summaryCount: 20,
     };
     expect(normalizeDigestConfig(input)).toEqual(input);
   });
@@ -116,6 +117,39 @@ describe('normalizeDigestConfig', () => {
   it('preserves valid headlineCount boundary values', () => {
     expect(normalizeDigestConfig({ headlineCount: 1 }).headlineCount).toBe(1);
     expect(normalizeDigestConfig({ headlineCount: 10 }).headlineCount).toBe(10);
+  });
+
+  it('clamps summaryCount below 5 to default', () => {
+    expect(normalizeDigestConfig({ summaryCount: 4 }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+    expect(normalizeDigestConfig({ summaryCount: 0 }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+    expect(normalizeDigestConfig({ summaryCount: -1 }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+  });
+
+  it('clamps summaryCount above 50 to default', () => {
+    expect(normalizeDigestConfig({ summaryCount: 51 }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+  });
+
+  it('defaults non-integer summaryCount', () => {
+    expect(normalizeDigestConfig({ summaryCount: 10.5 }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+    expect(normalizeDigestConfig({ summaryCount: 'twenty' }).summaryCount).toBe(
+      DEFAULT_DIGEST_CONFIG.summaryCount,
+    );
+  });
+
+  it('preserves valid summaryCount boundary values', () => {
+    expect(normalizeDigestConfig({ summaryCount: 5 }).summaryCount).toBe(5);
+    expect(normalizeDigestConfig({ summaryCount: 50 }).summaryCount).toBe(50);
+    expect(normalizeDigestConfig({ summaryCount: 30 }).summaryCount).toBe(30);
   });
 
   it('defaults non-array selectedTopics', () => {

@@ -28,6 +28,7 @@ const DEFAULT_LOCAL_CONFIG: DigestConfig = {
   selectedTopics: [],
   customTopics: [],
   headlineCount: 5,
+  summaryCount: 20,
 };
 
 export default function SettingsPage() {
@@ -59,7 +60,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (user && !configInitialized) {
-      setDigestConfig(user.digest_config ?? DEFAULT_LOCAL_CONFIG);
+      setDigestConfig({ ...DEFAULT_LOCAL_CONFIG, ...user.digest_config });
       setConfigInitialized(true);
     }
   }, [user, configInitialized]);
@@ -405,6 +406,34 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
                   Number of top headlines to feature in each digest (1&ndash;10).
+                </p>
+              </div>
+
+              {/* Summary Count */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Summary Count
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={5}
+                    max={50}
+                    value={digestConfig.summaryCount}
+                    onChange={(e) =>
+                      setDigestConfig((prev) => ({
+                        ...prev,
+                        summaryCount: Number(e.target.value),
+                      }))
+                    }
+                    className="flex-1"
+                  />
+                  <span className="text-sm font-medium text-gray-700 w-8 text-center">
+                    {digestConfig.summaryCount}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Maximum number of non-headline items to include in the digest (5&ndash;50).
                 </p>
               </div>
             </div>

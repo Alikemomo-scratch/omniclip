@@ -80,7 +80,7 @@ describe('formatContentItems', () => {
     const result = formatContentItems(items, 500);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toContain('[1] id:item-001 | github/release | 2026-03-10T08:00:00Z');
+    expect(result[0]).toContain('[1] github/release | 2026-03-10T08:00:00Z');
     expect(result[0]).toContain('Title: v1.0.0 Released');
     expect(result[0]).toContain('Author: dev-user');
     expect(result[0]).toContain('Content: Major release with new features.');
@@ -148,8 +148,10 @@ describe('formatContentItems', () => {
     const result = formatContentItems(items, 500);
 
     expect(result).toHaveLength(3);
-    expect(result[0]).toContain('[1] id:a1');
-    expect(result[1]).toContain('[2] id:a2');
-    expect(result[2]).toContain('[3] id:a3');
+    expect(result[0]).toContain('[1]');
+    expect(result[1]).toContain('[2]');
+    expect(result[2]).toContain('[3]');
+    expect(result[0]).toContain('github/release');
+    expect(result[0]).not.toContain('id:');
   });
 });

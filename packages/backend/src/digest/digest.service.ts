@@ -120,7 +120,11 @@ export class DigestService {
 
       // 5. Build source data lookup map
       const sourceMap = new Map(items.map((item) => [item.id, item]));
-      const validIds = new Set(items.map((item) => item.id));
+
+      // Build index↔UUID maps (LLMs use short indices, pipeline uses real UUIDs)
+      const indexToId = new Map<string, string>();
+      items.forEach((item, i) => indexToId.set(String(i + 1), item.id));
+      const validIndices = new Set(indexToId.keys());
 
       // 6. Phase 1: Screen & Classify (500 char body)
       onProgress?.({
@@ -131,7 +135,8 @@ export class DigestService {
       const phase1Result = await this.executePhase1(
         phase1Prompt,
         items,
-        validIds,
+        validIndices,
+        indexToId,
         language,
         digestConfig.headlineCount,
       );
@@ -527,7 +532,8 @@ export class DigestService {
   private async executePhase1(
     userPhase1Prompt: string,
     items: ContentItemForDigest[],
-    validIds: Set<string>,
+    validIndices: Set<string>,
+    indexToId: Map<string, string>,
     language: string,
     headlineCount?: number,
   ): Promise<Phase1Result | null> {
@@ -537,12 +543,13 @@ export class DigestService {
 
     try {
       const userFullPrompt = this.buildPhase1FullPrompt(userPhase1Prompt, langInstruction, contentBlock);
-      const userResult = await this.tryPhase1(userFullPrompt, validIds, headlineCount);
-      if (userResult) return userResult;
+      const userResult = await this.tryPhase1(userFullPrompt, validIndices, headlineCount);
+      if (userResult) return this.remapPhase1Ids(userResult, indexToId);
 
       this.logger.warn('Phase 1 prompt failed validation, retrying with default prompt');
       const defaultFullPrompt = this.buildPhase1FullPrompt(DEFAULT_PHASE1_PROMPT, langInstruction, contentBlock);
-      return this.tryPhase1(defaultFullPrompt, validIds, headlineCount);
+      const defaultResult = await this.tryPhase1(defaultFullPrompt, validIndices, headlineCount);
+      return defaultResult ? this.remapPhase1Ids(defaultResult, indexToId) : null;
     } catch (error) {
       this.logger.error(`Phase 1 transport failure after all retries: ${error}`);
       return null;
@@ -559,11 +566,11 @@ export class DigestService {
 
   private async tryPhase1(
     prompt: string,
-    validIds: Set<string>,
+    validIndices: Set<string>,
     headlineCount?: number,
   ): Promise<Phase1Result | null> {
     const response = await this.callAIWithRetry(prompt);
-    const validation = validatePhase1Response(response, validIds, headlineCount);
+    const validation = validatePhase1Response(response, validIndices, headlineCount);
     if (!validation.ok) {
       this.logger.warn(`Phase 1 validation failed: ${validation.error}`);
       return null;
@@ -573,9 +580,25 @@ export class DigestService {
         `Phase 1: ${validation.demotedHeadlineCount} headlines exceeded cap of ${headlineCount ?? 10}, demoted to categories`,
       );
     }
-    // Use post-cap headline IDs only — demoted items must remain in categories
     const headlineIds = new Set(validation.value.headlines.map((h) => h.item_id));
     return deduplicatePhase1Result(validation.value, [...headlineIds]);
+  }
+
+  private remapPhase1Ids(result: Phase1Result, indexToId: Map<string, string>): Phase1Result {
+    return {
+      headlines: result.headlines.map((h) => ({
+        ...h,
+        item_id: indexToId.get(h.item_id) ?? h.item_id,
+      })),
+      categories: result.categories.map((c) => ({
+        ...c,
+        items: c.items.map((i) => ({
+          ...i,
+          item_id: indexToId.get(i.item_id) ?? i.item_id,
+        })),
+      })),
+      trend_analysis: result.trend_analysis,
+    };
   }
 
   // ── Phase 2: Deep-dive Headlines ──
@@ -599,41 +622,45 @@ export class DigestService {
 
     if (headlineItems.length === 0) return [];
 
+    // Phase 2 gets its own index mapping (subset of items, re-indexed from 1)
+    const p2IndexToId = new Map<string, string>();
+    headlineItems.forEach((item, i) => p2IndexToId.set(String(i + 1), item.id));
+    const validP2Indices = new Set(p2IndexToId.keys());
+
     const formattedItems = formatContentItems(headlineItems, 3000);
     const contentBlock = formattedItems.join('\n\n');
     const langInstruction = this.buildLanguageInstruction(language);
-    const validHeadlineIds = new Set(phase1Headlines.map((h) => h.item_id));
 
-    // Build topic lookup
     const topicMap = new Map(phase1Headlines.map((h) => [h.item_id, h.topic]));
 
     let phase2Results: import('./prompts/digest.prompts').Phase2HeadlineResult[] | null = null;
 
     try {
-      // Try user prompt
       const userFullPrompt = this.buildPhase2FullPrompt(userPhase2Prompt, langInstruction, contentBlock);
-      phase2Results = await this.tryPhase2(userFullPrompt, validHeadlineIds);
+      phase2Results = await this.tryPhase2(userFullPrompt, validP2Indices);
 
       if (!phase2Results) {
-        // User prompt validation failed — retry with default
         this.logger.warn('Phase 2 user prompt failed validation, retrying with default prompt');
         const defaultFullPrompt = this.buildPhase2FullPrompt(DEFAULT_PHASE2_PROMPT, langInstruction, contentBlock);
-        phase2Results = await this.tryPhase2(defaultFullPrompt, validHeadlineIds);
+        phase2Results = await this.tryPhase2(defaultFullPrompt, validP2Indices);
       }
     } catch (error) {
-      // Transport exhaustion (all retries in callAIWithRetry failed)
       this.logger.error(`Phase 2 transport failure after all retries: ${error}`);
       return [];
     }
 
     if (!phase2Results || phase2Results.length === 0) {
-      // Phase 2 completely failed — return empty (digest still completes with categories only)
       this.logger.warn('Phase 2 completely failed — digest will have categories only');
       return [];
     }
 
-    // Log missing headlines
-    const returnedIds = new Set(phase2Results.map((r) => r.item_id));
+    // Remap indices back to real UUIDs
+    const remapped = phase2Results.map((r) => ({
+      ...r,
+      item_id: p2IndexToId.get(r.item_id) ?? r.item_id,
+    }));
+
+    const returnedIds = new Set(remapped.map((r) => r.item_id));
     const missingIds = phase1Headlines
       .map((h) => h.item_id)
       .filter((id) => !returnedIds.has(id));
@@ -641,8 +668,7 @@ export class DigestService {
       this.logger.warn(`Phase 2: ${missingIds.length} headlines missing analysis: ${missingIds.join(', ')}`);
     }
 
-    // Merge: topic from Phase 1, title+analysis from Phase 2, platform+url from source
-    return phase2Results.map((r) => {
+    return remapped.map((r) => {
       const source = sourceMap.get(r.item_id);
       return {
         item_id: r.item_id,
@@ -665,13 +691,11 @@ export class DigestService {
 
   private async tryPhase2(
     prompt: string,
-    validHeadlineIds: Set<string>,
+    validIndices: Set<string>,
   ): Promise<import('./prompts/digest.prompts').Phase2HeadlineResult[] | null> {
-    // Transport errors from callAIWithRetry propagate to executePhase2
     const response = await this.callAIWithRetry(prompt);
-    const validation = validatePhase2Response(response, validHeadlineIds);
+    const validation = validatePhase2Response(response, validIndices);
     if (!validation.ok) {
-      // Schema/parse failure — return null to trigger default prompt fallback
       this.logger.warn(`Phase 2 validation failed: ${validation.error}`);
       return null;
     }
@@ -755,16 +779,14 @@ export class DigestService {
    * Stub response when no API key is configured.
    */
   private stubAIResponse(prompt: string): string {
-    // Detect Phase 1 vs Phase 2 by checking for schema hints
     if (prompt.includes('"headlines"') && prompt.includes('"categories"')) {
-      // Phase 1 stub — extract item IDs from content block
-      const idMatches = prompt.match(/id:([a-f0-9-]+)/g) ?? [];
-      const ids = idMatches.map((m) => m.replace('id:', ''));
+      const indexMatches = prompt.match(/^\[(\d+)\]/gm) ?? [];
+      const indices = indexMatches.map((m) => m.replace(/[[\]]/g, ''));
 
-      const headlines = ids.slice(0, 2).map((id) => ({ item_id: id, topic: 'General' }));
-      const categoryItems = ids.slice(2).map((id) => ({
-        item_id: id,
-        one_liner: `Summary of item ${id}`,
+      const headlines = indices.slice(0, 2).map((idx) => ({ item_id: idx, topic: 'General' }));
+      const categoryItems = indices.slice(2, 12).map((idx) => ({
+        item_id: idx,
+        one_liner: `[STUB] Summary of item ${idx}`,
       }));
 
       return JSON.stringify({
@@ -772,20 +794,19 @@ export class DigestService {
         categories: categoryItems.length > 0
           ? [{ topic: 'Other Updates', items: categoryItems }]
           : [],
-        trend_analysis: 'Cross-platform analysis of recent content.',
+        trend_analysis: '[STUB] No AI API key configured. This is placeholder content.',
       });
     }
 
     if (prompt.includes('"title"') && prompt.includes('"analysis"')) {
-      // Phase 2 stub
-      const idMatches = prompt.match(/id:([a-f0-9-]+)/g) ?? [];
-      const ids = idMatches.map((m) => m.replace('id:', ''));
+      const indexMatches = prompt.match(/^\[(\d+)\]/gm) ?? [];
+      const indices = indexMatches.map((m) => m.replace(/[[\]]/g, ''));
 
       return JSON.stringify(
-        ids.map((id) => ({
-          item_id: id,
-          title: `Headline for ${id}`,
-          analysis: `Detailed analysis of item ${id}.`,
+        indices.map((idx) => ({
+          item_id: idx,
+          title: `[STUB] Headline for item ${idx}`,
+          analysis: `[STUB] No AI API key configured. This is placeholder analysis for item ${idx}.`,
         })),
       );
     }

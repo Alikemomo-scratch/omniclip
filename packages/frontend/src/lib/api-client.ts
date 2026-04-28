@@ -356,6 +356,7 @@ export interface DigestConfig {
   selectedTopics: string[];
   customTopics: string[];
   headlineCount: number;
+  summaryCount: number;
 }
 
 export const usersApi = {
