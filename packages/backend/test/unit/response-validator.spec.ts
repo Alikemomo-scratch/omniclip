@@ -4,6 +4,7 @@ import {
   validatePhase2Response,
   deduplicatePhase1Result,
 } from '../../src/digest/prompts/digest.validators';
+import { DEMOTED_HEADLINE_PLACEHOLDER } from '../../src/digest/prompts/digest.prompts';
 
 describe('validatePhase1Response', () => {
   const validIds = new Set(['id-1', 'id-2', 'id-3', 'id-4', 'id-5']);
@@ -94,7 +95,7 @@ describe('validatePhase1Response', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.headlines).toHaveLength(10);
-      expect(result.droppedHeadlineCount).toBe(5);
+      expect(result.demotedHeadlineCount).toBe(5);
     }
   });
 
@@ -172,6 +173,87 @@ describe('validatePhase1Response', () => {
       expect(result.value.headlines[0].topic).toBe('AI');
       expect(result.value.headlines[1].topic).toBe('Tools');
     }
+  });
+
+  describe('headlineCount demotion', () => {
+    it('demotes excess headlines to categories when headlineCount is provided', () => {
+      const json = JSON.stringify({
+        headlines: [
+          { item_id: 'id-1', topic: 'AI' },
+          { item_id: 'id-2', topic: 'Crypto' },
+          { item_id: 'id-3', topic: 'Tools' },
+        ],
+        categories: [{ topic: 'Other', items: [{ item_id: 'id-4', one_liner: 'Update' }] }],
+        trend_analysis: 'Trends.',
+      });
+
+      const result = validatePhase1Response(json, validIds, 2);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.headlines).toHaveLength(2);
+        expect(result.value.headlines.map(h => h.item_id)).toEqual(['id-1', 'id-2']);
+        const demotedCat = result.value.categories.find(c => c.items.some(i => i.item_id === 'id-3'));
+        expect(demotedCat).toBeDefined();
+        const demotedItem = demotedCat!.items.find(i => i.item_id === 'id-3');
+        expect(demotedItem).toBeDefined();
+        expect(demotedItem!.one_liner).toBe(DEMOTED_HEADLINE_PLACEHOLDER);
+      }
+    });
+
+    it('places demoted headlines into category matching their topic', () => {
+      const json = JSON.stringify({
+        headlines: [
+          { item_id: 'id-1', topic: 'AI' },
+          { item_id: 'id-2', topic: 'Crypto' },
+          { item_id: 'id-3', topic: 'Crypto' },
+        ],
+        categories: [],
+        trend_analysis: '',
+      });
+
+      const result = validatePhase1Response(json, validIds, 1);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.headlines).toHaveLength(1);
+        const cryptoCat = result.value.categories.find(c => c.topic === 'Crypto');
+        expect(cryptoCat).toBeDefined();
+        expect(cryptoCat!.items.map(i => i.item_id)).toContain('id-2');
+        expect(cryptoCat!.items.map(i => i.item_id)).toContain('id-3');
+        expect(result.value.headlines[0].item_id).toBe('id-1');
+      }
+    });
+
+    it('uses default MAX_HEADLINES when headlineCount is not provided', () => {
+      const ids = Array.from({ length: 12 }, (_, i) => `id-${i + 1}`);
+      const allIds = new Set(ids);
+      const json = JSON.stringify({
+        headlines: ids.map(id => ({ item_id: id, topic: 'General' })),
+        categories: [],
+        trend_analysis: '',
+      });
+
+      const result = validatePhase1Response(json, allIds);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.headlines.length).toBeLessThanOrEqual(10);
+        expect(result.demotedHeadlineCount).toBe(2);
+      }
+    });
+
+    it('does not demote when headlines are within limit', () => {
+      const json = JSON.stringify({
+        headlines: [{ item_id: 'id-1', topic: 'AI' }],
+        categories: [],
+        trend_analysis: '',
+      });
+
+      const result = validatePhase1Response(json, validIds, 5);
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.headlines).toHaveLength(1);
+        expect(result.demotedHeadlineCount).toBe(0);
+      }
+    });
   });
 });
 

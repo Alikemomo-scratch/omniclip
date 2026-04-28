@@ -5,11 +5,12 @@ import type {
   Phase1CategoryItem,
   Phase2HeadlineResult,
 } from './digest.prompts';
+import { DEMOTED_HEADLINE_PLACEHOLDER } from './digest.prompts';
 
 const MAX_HEADLINES = 10;
 
 export type ValidationResult<T> =
-  | { ok: true; value: T; droppedHeadlineCount?: number; allHeadlineIds?: string[] }
+  | { ok: true; value: T; demotedHeadlineCount: number }
   | { ok: false; error: string };
 
 /**
@@ -36,6 +37,7 @@ function parseJson(raw: string): unknown | null {
 export function validatePhase1Response(
   raw: string,
   validIds: Set<string>,
+  headlineCount?: number,
 ): ValidationResult<Phase1Result> {
   const parsed = parseJson(raw);
   if (!parsed || typeof parsed !== 'object') {
@@ -71,11 +73,12 @@ export function validatePhase1Response(
     })
     .map((h) => ({ item_id: h.item_id as string, topic: h.topic as string }));
 
-  const droppedHeadlineCount = Math.max(0, filteredHeadlines.length - MAX_HEADLINES);
-  const headlines = filteredHeadlines.slice(0, MAX_HEADLINES);
+  const effectiveCap = headlineCount ?? MAX_HEADLINES;
+  const headlines = filteredHeadlines.slice(0, effectiveCap);
+  const demotedHeadlines = filteredHeadlines.slice(effectiveCap);
 
   // Filter and validate categories
-  const categories: Phase1Category[] = (obj.categories as Record<string, unknown>[])
+  let categories: Phase1Category[] = (obj.categories as Record<string, unknown>[])
     .filter(
       (c) => typeof c.topic === 'string' && Array.isArray(c.items),
     )
@@ -96,6 +99,27 @@ export function validatePhase1Response(
     }))
     .filter((c) => c.items.length > 0);
 
+  if (demotedHeadlines.length > 0) {
+    const demotionMap = new Map<string, Phase1CategoryItem[]>();
+    for (const headline of demotedHeadlines) {
+      const items = demotionMap.get(headline.topic) ?? [];
+      items.push({
+        item_id: headline.item_id,
+        one_liner: DEMOTED_HEADLINE_PLACEHOLDER,
+      });
+      demotionMap.set(headline.topic, items);
+    }
+
+    for (const [topic, items] of demotionMap) {
+      const existing = categories.find((category) => category.topic === topic);
+      if (existing) {
+        existing.items.unshift(...items);
+      } else {
+        categories.push({ topic, items });
+      }
+    }
+  }
+
   return {
     ok: true,
     value: {
@@ -103,8 +127,7 @@ export function validatePhase1Response(
       categories,
       trend_analysis: obj.trend_analysis as string,
     },
-    droppedHeadlineCount,
-    allHeadlineIds: filteredHeadlines.map(h => h.item_id),
+    demotedHeadlineCount: demotedHeadlines.length,
   };
 }
 
@@ -145,7 +168,7 @@ export function validatePhase2Response(
       analysis: item.analysis as string,
     }));
 
-  return { ok: true, value: results };
+  return { ok: true, value: results, demotedHeadlineCount: 0 };
 }
 
 /**
