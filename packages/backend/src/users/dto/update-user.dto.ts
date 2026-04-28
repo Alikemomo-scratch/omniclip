@@ -37,4 +37,8 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(10000)
   digest_prompt?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o) => o.digest_config !== null)
+  digest_config?: Record<string, unknown> | null;
 }

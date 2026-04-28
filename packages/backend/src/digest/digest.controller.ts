@@ -19,6 +19,7 @@ import { Request, Response } from 'express';
 import { DigestService } from './digest.service';
 import { GenerateDigestDto, DigestQueryDto } from './dto';
 import { UsersService } from '../users/users.service';
+import { PRESET_TOPICS } from './prompts/digest.prompts';
 
 @Controller('digests')
 @UseGuards(AuthGuard('jwt'))
@@ -35,6 +36,11 @@ export class DigestController {
   async list(@Req() req: Request, @Query() query: DigestQueryDto) {
     const userId = (req.user as { userId: string }).userId;
     return this.digestService.findAll(userId, query);
+  }
+
+  @Get('topics')
+  getAvailableTopics() {
+    return { topics: PRESET_TOPICS };
   }
 
   /**
