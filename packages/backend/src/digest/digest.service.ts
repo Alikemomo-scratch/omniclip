@@ -575,7 +575,7 @@ export class DigestService {
     }
     // Use post-cap headline IDs only — demoted items must remain in categories
     const headlineIds = new Set(validation.value.headlines.map((h) => h.item_id));
-    return deduplicatePhase1Result(validation.value, headlineIds);
+    return deduplicatePhase1Result(validation.value, [...headlineIds]);
   }
 
   // ── Phase 2: Deep-dive Headlines ──
