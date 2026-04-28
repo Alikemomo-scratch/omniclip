@@ -203,10 +203,10 @@ YouTube 是唯一需要配置**服务端环境变量**的平台连接（因为 O
 说明：YouTube Data API v3 的启用页面截图
 -->
 
-#### Step 3：配置 OAuth 同意屏幕
+#### Step 3：配置 OAuth 权限请求页面
 
-1. 左侧菜单 → **API 和服务** → **OAuth 同意屏幕**
-2. 选择 **External**（外部）用户类型 → 点击**创建**
+1. 左侧菜单 → **API 和服务** → **OAuth 权限请求页面**
+2. 选择 **External**（目标对象）用户类型 → 点击**创建**
 3. 填写：
    - **应用名称**：`OmniClip`
    - **用户支持邮箱**：你的 Gmail
@@ -219,7 +219,7 @@ YouTube 是唯一需要配置**服务端环境变量**的平台连接（因为 O
 8. 点击**保存并继续**
 
 <!-- SCREENSHOT_PLACEHOLDER: gcloud-oauth-consent-screen
-说明：OAuth 同意屏幕配置页面，展示应用名称和用户类型设置
+说明：OAuth 权限请求页面配置，展示应用名称和用户类型设置
 -->
 
 <!-- SCREENSHOT_PLACEHOLDER: gcloud-oauth-scopes
