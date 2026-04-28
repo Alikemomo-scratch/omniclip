@@ -5,6 +5,7 @@ import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
 import { users } from '../common/database/schema';
 import type { UpdateUserDto } from './dto';
+import { normalizeDigestConfig } from '../digest/prompts/digest.prompts';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,7 @@ export class UsersService {
           timezone: users.timezone,
           contentRetentionDays: users.contentRetentionDays,
           digestPrompt: users.digestPrompt,
+          digestConfig: users.digestConfig,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
         })
@@ -51,6 +53,12 @@ export class UsersService {
       if (dto.content_retention_days !== undefined)
         updateData.contentRetentionDays = dto.content_retention_days;
       if (dto.digest_prompt !== undefined) updateData.digestPrompt = dto.digest_prompt ?? null;
+      if (dto.digest_config !== undefined) {
+        updateData.digestConfig =
+          dto.digest_config !== null
+            ? normalizeDigestConfig(dto.digest_config)
+            : null;
+      }
 
       if (Object.keys(updateData).length === 0) {
         return this.findByIdInTx(tx, userId);
@@ -68,6 +76,7 @@ export class UsersService {
         timezone: users.timezone,
         contentRetentionDays: users.contentRetentionDays,
         digestPrompt: users.digestPrompt,
+        digestConfig: users.digestConfig,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       });
@@ -96,6 +105,7 @@ export class UsersService {
         timezone: users.timezone,
         contentRetentionDays: users.contentRetentionDays,
         digestPrompt: users.digestPrompt,
+        digestConfig: users.digestConfig,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       })
@@ -120,6 +130,7 @@ export class UsersService {
     timezone: string;
     contentRetentionDays: number;
     digestPrompt: string | null;
+    digestConfig: unknown;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -133,6 +144,7 @@ export class UsersService {
       timezone: user.timezone,
       content_retention_days: user.contentRetentionDays,
       digest_prompt: user.digestPrompt,
+      digest_config: user.digestConfig ?? null,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
     };
