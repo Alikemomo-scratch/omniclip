@@ -342,6 +342,20 @@ export interface User {
   timezone: string;
   content_retention_days: number;
   digest_prompt: string | null;
+  digest_config: DigestConfig | null;
+}
+
+export interface PresetTopic {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface DigestConfig {
+  mode: 'structured' | 'raw';
+  selectedTopics: string[];
+  customTopics: string[];
+  headlineCount: number;
 }
 
 export const usersApi = {
@@ -468,6 +482,10 @@ export const digestsApi = {
     });
     const qs = params.toString();
     return apiClient.get(`/digests${qs ? `?${qs}` : ''}`);
+  },
+
+  getAvailableTopics(): Promise<{ topics: PresetTopic[] }> {
+    return apiClient.get('/digests/topics');
   },
 
   getById(id: string): Promise<Digest> {
