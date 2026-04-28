@@ -45,7 +45,7 @@ export class YouTubeOAuthController {
    */
   @Get()
   @UseGuards(JwtAuthGuard)
-  authorize(@Req() req: Request, @Res() res: Response) {
+  authorize(@Req() req: Request, @Query('sync_interval') syncInterval: string, @Res() res: Response) {
     const user = req.user as { userId: string };
     const clientId = this.configService.get<string>('youtube.clientId');
     const redirectUri = this.configService.get<string>('youtube.redirectUri');
@@ -54,14 +54,17 @@ export class YouTubeOAuthController {
       throw new BadRequestException('YouTube OAuth is not configured (missing client ID)');
     }
 
+    const interval = parseInt(syncInterval, 10) || 60;
+    const statePayload = `${user.userId}:${interval}`;
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri!,
       response_type: 'code',
       scope: YOUTUBE_SCOPES.join(' '),
-      access_type: 'offline', // Request refresh_token
-      prompt: 'consent', // Always show consent to get refresh_token
-      state: user.userId, // Pass userId for callback association
+      access_type: 'offline',
+      prompt: 'consent',
+      state: statePayload,
     });
 
     const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
@@ -99,13 +102,12 @@ export class YouTubeOAuthController {
       return;
     }
 
-    const userId = state;
+    const [userId, intervalStr] = state.split(':');
+    const syncIntervalMinutes = parseInt(intervalStr, 10) || 60;
 
     try {
-      // Exchange authorization code for tokens
       const tokens = await this.exchangeCodeForTokens(code);
 
-      // Create YouTube connection with OAuth tokens
       await this.connectionsService.create(userId, {
         platform: 'youtube',
         connection_type: 'api',
@@ -114,6 +116,7 @@ export class YouTubeOAuthController {
           refresh_token: tokens.refresh_token,
           token_expiry: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         },
+        sync_interval_minutes: syncIntervalMinutes,
       });
 
       this.logger.log(`YouTube connection created for user ${userId}`);
