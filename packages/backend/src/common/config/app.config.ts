@@ -23,6 +23,10 @@ export interface AppConfig {
     clientSecret: string;
     redirectUri: string;
   };
+  email: {
+    resendApiKey: string;
+    fromEmail: string;
+  };
 }
 
 export const appConfig = (): AppConfig => ({
@@ -50,5 +54,9 @@ export const appConfig = (): AppConfig => ({
     clientSecret: process.env.YOUTUBE_CLIENT_SECRET || '',
     redirectUri:
       process.env.YOUTUBE_REDIRECT_URI || 'http://localhost:3000/connections/youtube/callback',
+  },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    fromEmail: process.env.RESEND_FROM_EMAIL || 'digest@yourdomain.com',
   },
 });
