@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined'
+    ? `http://${window.location.hostname}:3001/api/v1`
+    : 'http://localhost:3001/api/v1');
 
 /**
  * Minimal API client for OmniClip backend.
@@ -455,8 +459,15 @@ export interface Digest {
 }
 
 /** Check if topic_groups is in the new DigestOutput format */
-export function isNewDigestFormat(topicGroups: DigestOutput | TopicGroup[]): topicGroups is DigestOutput {
-  return topicGroups !== null && typeof topicGroups === 'object' && !Array.isArray(topicGroups) && 'headlines' in topicGroups;
+export function isNewDigestFormat(
+  topicGroups: DigestOutput | TopicGroup[],
+): topicGroups is DigestOutput {
+  return (
+    topicGroups !== null &&
+    typeof topicGroups === 'object' &&
+    !Array.isArray(topicGroups) &&
+    'headlines' in topicGroups
+  );
 }
 
 export interface DigestsResponse {
@@ -482,7 +493,9 @@ export interface GenerateDigestResponse {
 }
 
 export const digestsApi = {
-  list(query: { page?: number; limit?: number; type?: string; archived?: boolean } = {}): Promise<DigestsResponse> {
+  list(
+    query: { page?: number; limit?: number; type?: string; archived?: boolean } = {},
+  ): Promise<DigestsResponse> {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== '') {

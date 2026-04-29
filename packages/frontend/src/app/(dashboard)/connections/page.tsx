@@ -5,7 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { connectionsApi, getToken } from '@/lib/api-client';
 import type { Connection, ApiError } from '@/lib/api-client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined'
+    ? `http://${window.location.hostname}:3001/api/v1`
+    : 'http://localhost:3001/api/v1');
 
 interface PlatformConfig {
   id: string;
@@ -113,14 +117,15 @@ export default function ConnectionsPage() {
     e.preventDefault();
     const platform = dynamicPlatforms.find((p) => p.id === selectedPlatform);
     if (!platform) return;
-    
+
     if (platform.authType === 'token' && !platform.authField) return;
 
     if (platform.authType === 'cookie') {
-      const authData = twitterAuthTab === 'apikey'
-        ? { api_key: authToken }
-        : { auth_token: twitterAuthToken, ct0: twitterCt0 };
-      
+      const authData =
+        twitterAuthTab === 'apikey'
+          ? { api_key: authToken }
+          : { auth_token: twitterAuthToken, ct0: twitterCt0 };
+
       createMutation.mutate({
         platform: selectedPlatform,
         connection_type: 'api',
@@ -201,7 +206,9 @@ export default function ConnectionsPage() {
                 onChange={(e) => setSyncInterval(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="30" disabled={selectedPlatform !== 'twitter'}>Every 30 minutes</option>
+                <option value="30" disabled={selectedPlatform !== 'twitter'}>
+                  Every 30 minutes
+                </option>
                 <option value="60">Every 1 hour</option>
                 <option value="360">Every 6 hours</option>
                 <option value="1440">Every 1 day</option>
@@ -252,13 +259,16 @@ export default function ConnectionsPage() {
                           Manual Cookies
                         </button>
                       </div>
-                      
+
                       {twitterAuthTab === 'apikey' ? (
                         <div>
                           <p className="text-sm text-gray-600 mb-3">
-                            Use the X Auth Helper browser extension to generate an API key. Install from Chrome Web Store, click &quot;Get API Key&quot;, and paste below.
+                            Use the X Auth Helper browser extension to generate an API key. Install
+                            from Chrome Web Store, click &quot;Get API Key&quot;, and paste below.
                           </p>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            API Key
+                          </label>
                           <input
                             type="password"
                             required
@@ -271,11 +281,14 @@ export default function ConnectionsPage() {
                       ) : (
                         <div>
                           <p className="text-sm text-gray-600 mb-3">
-                            Open x.com &rarr; Press F12 &rarr; Application tab &rarr; Cookies &rarr; x.com. Copy these two cookies:
+                            Open x.com &rarr; Press F12 &rarr; Application tab &rarr; Cookies &rarr;
+                            x.com. Copy these two cookies:
                           </p>
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">auth_token</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                auth_token
+                              </label>
                               <input
                                 type="password"
                                 required
@@ -286,7 +299,9 @@ export default function ConnectionsPage() {
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">ct0</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                ct0
+                              </label>
                               <input
                                 type="password"
                                 required
@@ -349,23 +364,23 @@ export default function ConnectionsPage() {
       ) : (
         <div className="space-y-4">
           {data.connections.map((conn: Connection) => (
-              <ConnectionCard
-                key={conn.id}
-                connection={conn}
-                onTest={() => testMutation.mutate(conn.id)}
-                onSync={() => syncMutation.mutate(conn.id)}
-                onDelete={() => {
-                  if (confirm('Are you sure you want to disconnect?')) {
-                    deleteMutation.mutate(conn.id);
-                  }
-                }}
-                onUpdateCookies={() => {
-                  setSelectedPlatform(conn.platform);
-                  setTwitterAuthTab('cookies');
-                  setShowAddForm(true);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                testResult={
+            <ConnectionCard
+              key={conn.id}
+              connection={conn}
+              onTest={() => testMutation.mutate(conn.id)}
+              onSync={() => syncMutation.mutate(conn.id)}
+              onDelete={() => {
+                if (confirm('Are you sure you want to disconnect?')) {
+                  deleteMutation.mutate(conn.id);
+                }
+              }}
+              onUpdateCookies={() => {
+                setSelectedPlatform(conn.platform);
+                setTwitterAuthTab('cookies');
+                setShowAddForm(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              testResult={
                 testMutation.variables === conn.id
                   ? {
                       loading: testMutation.isPending,
@@ -412,7 +427,11 @@ function ConnectionCard({
     loading: boolean;
   };
 }) {
-  const isAuthError = connection.status === 'error' && connection.last_error && (connection.last_error.includes('AUTH_EXPIRED') || connection.last_error.toLowerCase().includes('credential'));
+  const isAuthError =
+    connection.status === 'error' &&
+    connection.last_error &&
+    (connection.last_error.includes('AUTH_EXPIRED') ||
+      connection.last_error.toLowerCase().includes('credential'));
 
   const statusColor =
     connection.status === 'active'

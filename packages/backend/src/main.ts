@@ -27,6 +27,9 @@ async function bootstrap() {
       if (
         !origin ||
         origin.startsWith('http://localhost') ||
+        /^http:\/\/192\.168\.\d+\.\d+/.test(origin) ||
+        /^http:\/\/10\.\d+\.\d+\.\d+/.test(origin) ||
+        /^http:\/\/172\.(1[6-9]|2\d|3[01])\.\d+\.\d+/.test(origin) ||
         origin.startsWith('chrome-extension://')
       ) {
         callback(null, true);
