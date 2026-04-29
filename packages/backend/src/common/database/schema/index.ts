@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   integer,
+  boolean,
   timestamp,
   time,
   jsonb,
@@ -29,6 +30,7 @@ export const users = pgTable(
     contentRetentionDays: integer('content_retention_days').notNull().default(90),
     digestPrompt: text('digest_prompt'),
     digestConfig: jsonb('digest_config'),
+    emailDigestEnabled: boolean('email_digest_enabled').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -165,4 +167,26 @@ export const syncJobs = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('idx_sj_connection').on(table.connectionId, table.createdAt)],
+);
+
+// ============================================================
+// 7. email_delivery_logs
+// ============================================================
+export const emailDeliveryLogs = pgTable(
+  'email_delivery_logs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    digestId: uuid('digest_id')
+      .notNull()
+      .references(() => digests.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    resendId: varchar('resend_id', { length: 100 }),
+    error: text('error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('idx_edl_user').on(table.userId), index('idx_edl_digest').on(table.digestId)],
 );
