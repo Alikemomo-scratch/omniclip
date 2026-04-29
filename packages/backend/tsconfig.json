@@ -8,6 +8,7 @@
     "declaration": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "jsx": "react-jsx",
     "composite": false
   },
   "include": ["src"]
