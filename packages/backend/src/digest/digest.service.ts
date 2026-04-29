@@ -1,5 +1,7 @@
 import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { eq, and, gte, lte, sql, count, desc, isNull, isNotNull } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -8,6 +10,7 @@ import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
 import { contentItems, digests, digestItems, users } from '../common/database/schema';
+import { EMAIL_QUEUE_NAME } from '../email/email.constants';
 import {
   formatContentItems,
   splitPromptTemplate,
@@ -50,6 +53,7 @@ export class DigestService {
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly configService: ConfigService,
+    @InjectQueue(EMAIL_QUEUE_NAME) private readonly emailQueue: Queue,
   ) {
     const openAiKey = this.configService.get<string>('openai.apiKey');
     if (openAiKey) {
@@ -116,7 +120,10 @@ export class DigestService {
 
       // 4. Fetch user settings and resolve prompts
       const { digestConfig, digestPrompt } = await this.fetchUserSettings(userId);
-      const { phase1: phase1Prompt, phase2: phase2Prompt } = this.resolvePrompts(digestConfig, digestPrompt);
+      const { phase1: phase1Prompt, phase2: phase2Prompt } = this.resolvePrompts(
+        digestConfig,
+        digestPrompt,
+      );
 
       // 5. Build source data lookup map
       const sourceMap = new Map(items.map((item) => [item.id, item]));
@@ -432,6 +439,9 @@ export class DigestService {
         })
         .where(eq(digests.id, digestId));
     });
+
+    // Dispatch email delivery job
+    await this.emailQueue.add('send-digest-email', { digestId, userId }, { delay: 5_000 });
   }
 
   private async linkDigestItems(
@@ -542,12 +552,20 @@ export class DigestService {
     const langInstruction = this.buildLanguageInstruction(language);
 
     try {
-      const userFullPrompt = this.buildPhase1FullPrompt(userPhase1Prompt, langInstruction, contentBlock);
+      const userFullPrompt = this.buildPhase1FullPrompt(
+        userPhase1Prompt,
+        langInstruction,
+        contentBlock,
+      );
       const userResult = await this.tryPhase1(userFullPrompt, validIndices, headlineCount);
       if (userResult) return this.remapPhase1Ids(userResult, indexToId);
 
       this.logger.warn('Phase 1 prompt failed validation, retrying with default prompt');
-      const defaultFullPrompt = this.buildPhase1FullPrompt(DEFAULT_PHASE1_PROMPT, langInstruction, contentBlock);
+      const defaultFullPrompt = this.buildPhase1FullPrompt(
+        DEFAULT_PHASE1_PROMPT,
+        langInstruction,
+        contentBlock,
+      );
       const defaultResult = await this.tryPhase1(defaultFullPrompt, validIndices, headlineCount);
       return defaultResult ? this.remapPhase1Ids(defaultResult, indexToId) : null;
     } catch (error) {
@@ -636,12 +654,20 @@ export class DigestService {
     let phase2Results: import('./prompts/digest.prompts').Phase2HeadlineResult[] | null = null;
 
     try {
-      const userFullPrompt = this.buildPhase2FullPrompt(userPhase2Prompt, langInstruction, contentBlock);
+      const userFullPrompt = this.buildPhase2FullPrompt(
+        userPhase2Prompt,
+        langInstruction,
+        contentBlock,
+      );
       phase2Results = await this.tryPhase2(userFullPrompt, validP2Indices);
 
       if (!phase2Results) {
         this.logger.warn('Phase 2 user prompt failed validation, retrying with default prompt');
-        const defaultFullPrompt = this.buildPhase2FullPrompt(DEFAULT_PHASE2_PROMPT, langInstruction, contentBlock);
+        const defaultFullPrompt = this.buildPhase2FullPrompt(
+          DEFAULT_PHASE2_PROMPT,
+          langInstruction,
+          contentBlock,
+        );
         phase2Results = await this.tryPhase2(defaultFullPrompt, validP2Indices);
       }
     } catch (error) {
@@ -661,11 +687,11 @@ export class DigestService {
     }));
 
     const returnedIds = new Set(remapped.map((r) => r.item_id));
-    const missingIds = phase1Headlines
-      .map((h) => h.item_id)
-      .filter((id) => !returnedIds.has(id));
+    const missingIds = phase1Headlines.map((h) => h.item_id).filter((id) => !returnedIds.has(id));
     if (missingIds.length > 0) {
-      this.logger.warn(`Phase 2: ${missingIds.length} headlines missing analysis: ${missingIds.join(', ')}`);
+      this.logger.warn(
+        `Phase 2: ${missingIds.length} headlines missing analysis: ${missingIds.join(', ')}`,
+      );
     }
 
     return remapped.map((r) => {
@@ -809,9 +835,8 @@ export class DigestService {
 
       return JSON.stringify({
         headlines,
-        categories: categoryItems.length > 0
-          ? [{ topic: 'Other Updates', items: categoryItems }]
-          : [],
+        categories:
+          categoryItems.length > 0 ? [{ topic: 'Other Updates', items: categoryItems }] : [],
         trend_analysis: '[STUB] No AI API key configured. This is placeholder content.',
       });
     }

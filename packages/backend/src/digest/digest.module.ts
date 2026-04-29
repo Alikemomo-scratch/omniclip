@@ -9,6 +9,7 @@ import { DigestController } from './digest.controller';
 import { DigestScheduler } from './digest.scheduler';
 import { DigestProcessor } from './digest.processor';
 import { UsersModule } from '../users';
+import { EMAIL_QUEUE_NAME } from '../email/email.constants';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UsersModule } from '../users';
         removeOnFail: { count: 500 },
       },
     }),
+    BullModule.registerQueue({ name: EMAIL_QUEUE_NAME }),
     BullBoardModule.forFeature({
       name: DIGEST_QUEUE_NAME,
       adapter: BullMQAdapter,
