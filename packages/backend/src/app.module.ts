@@ -9,6 +9,7 @@ import { ConnectorsModule } from './connectors';
 import { ConnectionsModule } from './connections';
 import { ContentModule } from './content';
 import { DigestModule } from './digest';
+import { EmailModule } from './email/email.module';
 import { LoggerModule } from './common/logger/logger.module';
 import { LoggerMiddleware } from './common/logger/logger.middleware';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
@@ -29,6 +30,7 @@ import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
     ConnectionsModule,
     ContentModule,
     DigestModule,
+    EmailModule,
   ],
 })
 export class AppModule implements NestModule {
