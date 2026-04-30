@@ -5,6 +5,14 @@ ALTER TABLE content_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE digests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_jobs ENABLE ROW LEVEL SECURITY;
 
+-- Force RLS even for table owner / superuser connections.
+-- Without this, the postgres superuser bypasses all RLS policies silently.
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+ALTER TABLE platform_connections FORCE ROW LEVEL SECURITY;
+ALTER TABLE content_items FORCE ROW LEVEL SECURITY;
+ALTER TABLE digests FORCE ROW LEVEL SECURITY;
+ALTER TABLE sync_jobs FORCE ROW LEVEL SECURITY;
+
 -- Users table policies:
 -- SELECT: Allow unrestricted reads when no RLS context is set (auth flows like
 -- register/login/refresh need to query by email before a user ID is known).
