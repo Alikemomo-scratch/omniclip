@@ -135,7 +135,7 @@ export class DigestController {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
-      res.write(`event: error\ndata: ${JSON.stringify({ digest_id: id, status: 'failed' })}\n\n`);
+      res.write(`event: error\ndata: ${JSON.stringify({ digest_id: id, status: 'failed', error_message: digest.error_message ?? null })}\n\n`);
       res.end();
       return;
     }
@@ -169,7 +169,7 @@ export class DigestController {
         if (current.status === 'failed') {
           clearInterval(interval);
           res.write(
-            `event: error\ndata: ${JSON.stringify({ digest_id: id, status: 'failed' })}\n\n`,
+            `event: error\ndata: ${JSON.stringify({ digest_id: id, status: 'failed', error_message: current.error_message ?? null })}\n\n`,
           );
           res.end();
           return;

@@ -16,7 +16,7 @@ import { EMAIL_QUEUE_NAME } from '../email/email.constants';
     BullModule.registerQueue({
       name: DIGEST_QUEUE_NAME,
       defaultJobOptions: {
-        attempts: 2,
+        attempts: 3,
         backoff: {
           type: 'exponential',
           delay: 10000,
