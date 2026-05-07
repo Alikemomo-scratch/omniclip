@@ -117,6 +117,7 @@ export const digests = pgTable(
     language: varchar('language', { length: 10 }).notNull(),
     topicGroups: jsonb('topic_groups').notNull(),
     trendAnalysis: text('trend_analysis'),
+    errorMessage: text('error_message'),
     itemCount: integer('item_count').notNull(),
     status: varchar('status', { length: 20 }).notNull().default('pending'),
     generatedAt: timestamp('generated_at', { withTimezone: true }),
