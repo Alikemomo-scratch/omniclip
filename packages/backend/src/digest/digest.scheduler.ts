@@ -12,6 +12,7 @@ export interface DigestJobData {
   userId: string;
   digestType: string;
   language: string;
+  digestId?: string;
 }
 
 @Injectable()
@@ -42,6 +43,9 @@ export class DigestScheduler implements OnModuleInit {
         preferredLanguage: users.preferredLanguage,
       })
       .from(users);
+
+    const currentJobIds = new Set(allUsers.map((user) => `digest-${user.id}`));
+    await this.removeStaleDigestJobs(currentJobIds);
 
     for (const user of allUsers) {
       if (user.digestFrequency === 'manual') {
@@ -77,7 +81,7 @@ export class DigestScheduler implements OnModuleInit {
     // Remove old repeatable jobs
     const repeatableJobs = await this.digestQueue.getRepeatableJobs();
     for (const job of repeatableJobs) {
-      if (job.id === jobId) {
+      if (this.repeatableDigestJobId(job) === jobId) {
         await this.digestQueue.removeRepeatableByKey(job.key);
       }
     }
@@ -122,10 +126,25 @@ export class DigestScheduler implements OnModuleInit {
     const repeatableJobs = await this.digestQueue.getRepeatableJobs();
 
     for (const job of repeatableJobs) {
-      if (job.id === jobId) {
+      if (this.repeatableDigestJobId(job) === jobId) {
         await this.digestQueue.removeRepeatableByKey(job.key);
         this.logger.log(`Removed digest schedule for user ${userId}`);
       }
     }
+  }
+
+  private async removeStaleDigestJobs(currentJobIds: Set<string>): Promise<void> {
+    const repeatableJobs = await this.digestQueue.getRepeatableJobs();
+    for (const job of repeatableJobs) {
+      const jobId = this.repeatableDigestJobId(job);
+      if (jobId?.startsWith('digest-') && !currentJobIds.has(jobId)) {
+        await this.digestQueue.removeRepeatableByKey(job.key);
+        this.logger.log(`Removed stale digest schedule ${jobId}`);
+      }
+    }
+  }
+
+  private repeatableDigestJobId(job: { id?: string | null; name?: string }): string | undefined {
+    return job.id ?? job.name;
   }
 }
