@@ -14,9 +14,11 @@ export interface AppConfig {
   };
   openai: {
     apiKey: string;
+    model: string;
   };
   gemini: {
     apiKey: string;
+    model: string;
   };
   youtube: {
     clientId: string;
@@ -45,9 +47,11 @@ export const appConfig = (): AppConfig => ({
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   },
   youtube: {
     clientId: process.env.YOUTUBE_CLIENT_ID || '',
