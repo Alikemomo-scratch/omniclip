@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { eq, and, gte, lte, sql, count, desc, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, count, desc, isNull, isNotNull, inArray } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -49,26 +49,44 @@ export class DigestService {
   private readonly logger = new Logger(DigestService.name);
   private openai: OpenAI | null = null;
   private gemini: GoogleGenerativeAI | null = null;
+  private readonly openaiModel: string;
+  private readonly geminiModel: string;
 
   constructor(
     @Inject(DRIZZLE) private readonly db: DrizzleDB,
     private readonly configService: ConfigService,
     @InjectQueue(EMAIL_QUEUE_NAME) private readonly emailQueue: Queue,
   ) {
+    this.openaiModel = this.configService.get<string>('openai.model') || 'gpt-4o-mini';
+    this.geminiModel = this.configService.get<string>('gemini.model') || 'gemini-2.5-flash';
+
     const openAiKey = this.configService.get<string>('openai.apiKey');
-    if (openAiKey) {
+    if (this.isUsableOpenAiKey(openAiKey)) {
       this.openai = new OpenAI({ apiKey: openAiKey });
     }
 
     const geminiKey = this.configService.get<string>('gemini.apiKey');
-    if (geminiKey) {
+    if (this.isUsableGeminiKey(geminiKey)) {
       this.gemini = new GoogleGenerativeAI(geminiKey);
     }
+  }
+
+  private isUsableOpenAiKey(value: string | undefined): value is string {
+    const key = value?.trim();
+    return Boolean(key && /^sk-[A-Za-z0-9_-]{20,}$/.test(key) && !/your|placeholder/i.test(key));
+  }
+
+  private isUsableGeminiKey(value: string | undefined): value is string {
+    const key = value?.trim();
+    return Boolean(key && /^AIza[A-Za-z0-9_-]{20,}$/.test(key) && !/your|placeholder/i.test(key));
   }
 
   /**
    * Generate a digest for the given user and time period.
    * Two-phase pipeline: screen+classify → deep-dive headlines.
+   *
+   * When `existingDigestId` is provided (BullMQ retry), the method
+   * reuses the existing digest row instead of creating a new one.
    */
   async generateDigest(
     userId: string,
@@ -77,15 +95,12 @@ export class DigestService {
     periodEnd: Date,
     language: string,
     onProgress?: ProgressCallback,
+    existingDigestId?: string,
   ): Promise<string> {
-    // 1. Create a pending digest record
-    const digestId = await this.createPendingDigest(
-      userId,
-      digestType,
-      periodStart,
-      periodEnd,
-      language,
-    );
+    // 1. Create or reuse a pending digest record
+    const digestId =
+      existingDigestId ??
+      (await this.createPendingDigest(userId, digestType, periodStart, periodEnd, language));
 
     try {
       // 2. Mark as generating
@@ -149,8 +164,6 @@ export class DigestService {
       );
 
       if (!phase1Result) {
-        // Phase 1 completely failed — mark digest as failed
-        await this.updateDigestStatus(userId, digestId, 'failed');
         onProgress?.({
           type: 'error',
           data: { digest_id: digestId, error: 'Phase 1 failed: could not classify content' },
@@ -237,11 +250,15 @@ export class DigestService {
       return digestId;
     } catch (error) {
       this.logger.error(`Digest generation failed: ${error}`);
-      // Only update to failed if not already set
-      try {
-        await this.updateDigestStatus(userId, digestId, 'failed');
-      } catch {
-        // Status may already be set
+      // When called from processor with existingDigestId, the processor
+      // handles failure marking based on retry exhaustion. Only mark
+      // failed here for direct (non-processor) calls.
+      if (!existingDigestId) {
+        try {
+          await this.markDigestFailed(userId, digestId, error);
+        } catch {
+          // Status may already be set
+        }
       }
       onProgress?.({
         type: 'error',
@@ -292,6 +309,7 @@ export class DigestService {
           generated_at: digests.generatedAt,
           topic_groups: digests.topicGroups,
           trend_analysis: digests.trendAnalysis,
+          error_message: digests.errorMessage,
           created_at: digests.createdAt,
           archived_at: digests.archivedAt,
         })
@@ -330,6 +348,7 @@ export class DigestService {
           generated_at: digests.generatedAt,
           topic_groups: digests.topicGroups,
           trend_analysis: digests.trendAnalysis,
+          error_message: digests.errorMessage,
           created_at: digests.createdAt,
           archived_at: digests.archivedAt,
         })
@@ -387,7 +406,7 @@ export class DigestService {
 
   // ── Private helpers ──
 
-  private async createPendingDigest(
+  async createPendingDigest(
     userId: string,
     digestType: string,
     periodStart: Date,
@@ -406,6 +425,7 @@ export class DigestService {
           topicGroups: [],
           itemCount: 0,
           status: 'pending',
+          errorMessage: null,
         })
         .returning({ id: digests.id });
       return row.id;
@@ -420,6 +440,66 @@ export class DigestService {
     await withRlsContext(this.db, userId, async (tx) => {
       await tx.update(digests).set({ status }).where(eq(digests.id, digestId));
     });
+  }
+
+  async markDigestFailed(
+    userId: string,
+    digestId: string,
+    error: unknown,
+  ): Promise<void> {
+    const errorMessage = this.formatErrorMessage(error);
+    await withRlsContext(this.db, userId, async (tx) => {
+      await tx
+        .update(digests)
+        .set({ status: 'failed', errorMessage })
+        .where(eq(digests.id, digestId));
+    });
+  }
+
+  async findExistingDigestForDate(
+    userId: string,
+    digestType: string,
+    periodEnd: Date,
+  ): Promise<{ id: string; status: string } | null> {
+    const dayStart = new Date(periodEnd);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+    const [row] = await this.db
+      .select({ id: digests.id, status: digests.status })
+      .from(digests)
+      .where(
+        and(
+          eq(digests.userId, userId),
+          eq(digests.digestType, digestType),
+          gte(digests.periodEnd, dayStart),
+          lte(digests.periodEnd, dayEnd),
+          inArray(digests.status, ['completed', 'generating', 'pending']),
+        ),
+      )
+      .orderBy(desc(digests.createdAt))
+      .limit(1);
+
+    return row ?? null;
+  }
+
+  formatErrorMessage(error: unknown): string {
+    let message =
+      error instanceof Error ? error.message : String(error);
+
+    // Redact common secret-bearing patterns
+    message = message
+      .replace(/api[_-]?key\s*[=:]\s*\S+/gi, 'api_key=[REDACTED]')
+      .replace(/token\s*[=:]\s*\S+/gi, 'token=[REDACTED]')
+      .replace(/authorization\s*:\s*\S+/gi, 'authorization: [REDACTED]')
+      .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+      .replace(/:\/\/[^@\s]+@/g, '://[REDACTED]@');
+
+    if (message.length > 2000) {
+      message = message.slice(0, 2000);
+    }
+    return message;
   }
 
   private async completeDigest(
@@ -769,7 +849,7 @@ export class DigestService {
 
     if (this.gemini) {
       const model = this.gemini.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: this.geminiModel,
         systemInstruction: systemPrompt,
         generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
       });
@@ -799,7 +879,7 @@ export class DigestService {
     if (this.openai) {
       // No response_format constraint — Phase 2 requires top-level JSON array (R2-4)
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: this.openaiModel,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
