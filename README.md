@@ -40,7 +40,7 @@ That's OmniClip.
 
 **2. OmniClip filters** — It fetches only content from accounts you actually follow. Algorithmic recommendations, promoted posts, and trending injections are stripped out entirely.
 
-**3. AI assembles your newspaper** — Headlines with deep-dive analysis. Category summaries. Cross-platform trend insights. Delivered as a clean, readable digest.
+**3. AI assembles your newspaper** — Headlines with deep-dive analysis. Category summaries. Cross-platform trend insights. Delivered as a clean, readable digest — on the web or straight to your inbox via email.
 
 ---
 
@@ -88,6 +88,29 @@ Detailed setup instructions: **[Setup Guide](docs/setup.md)** | **[Platform Keys
 
 ---
 
+## Email Digest Delivery
+
+OmniClip can send your digest directly to your inbox via [Resend](https://resend.com).
+
+### Setup
+
+1. **Get a Resend API key** — Sign up at [resend.com](https://resend.com) and create an API key.
+
+2. **Add to `.env`** (in `packages/backend/`):
+   ```env
+   RESEND_API_KEY=re_your_api_key_here
+   RESEND_FROM_EMAIL=onboarding@resend.dev
+   ```
+
+3. **(Optional) Verify a custom domain** — The default `onboarding@resend.dev` sender can only deliver to the email address associated with your Resend account. To send to any recipient, [verify your own domain](https://resend.com/domains) and update `RESEND_FROM_EMAIL` accordingly.
+
+### Configuration
+
+- **Digest delivery email** — In Settings, set a separate email address for receiving digests (independent of your login email). Leave empty to use your login email.
+- **Manual send** — On the Digests page, click the ✉ icon on any completed digest to trigger email delivery manually.
+
+---
+
 ## Architecture
 
 OmniClip is a TypeScript monorepo managed by [Turborepo](https://turbo.build) + pnpm.
@@ -132,7 +155,8 @@ Not yet. OmniClip is in active early development (v0.1.0). Expect breaking chang
 
 ## Roadmap
 
-- [ ] **Digest delivery** — Push digests to Email, Feishu / Lark, Slack, Telegram, and other channels
+- [x] **Email digest delivery** — Send digests to your inbox via Resend, with configurable delivery email and manual send
+- [ ] **More delivery channels** — Feishu / Lark, Slack, Telegram, and other channels
 - [ ] **More platforms** — Hacker News, Reddit, Bilibili, Xiaohongshu, RSS, and community-contributed connectors
 - [ ] **Smart recommendations** — Surface content you might have missed based on your reading history, archived items, and interest graph
 
