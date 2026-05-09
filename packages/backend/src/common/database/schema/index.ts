@@ -30,6 +30,7 @@ export const users = pgTable(
     contentRetentionDays: integer('content_retention_days').notNull().default(90),
     digestPrompt: text('digest_prompt'),
     digestConfig: jsonb('digest_config'),
+    digestEmail: varchar('digest_email', { length: 255 }),
     emailDigestEnabled: boolean('email_digest_enabled').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
