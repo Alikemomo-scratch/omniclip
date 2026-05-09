@@ -58,6 +58,7 @@ export const platformConnections = pgTable(
     errorCount: integer('error_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('idx_pc_user_platform').on(table.userId, table.platform),
