@@ -107,6 +107,17 @@ export class DigestController {
   }
 
   /**
+   * POST /digests/:id/send-email — Manually trigger email delivery for a completed digest.
+   */
+  @Post(':id/send-email')
+  @HttpCode(202)
+  async sendEmail(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const userId = (req.user as { userId: string }).userId;
+    await this.digestService.sendDigestEmail(userId, id);
+    return { message: 'Email delivery queued' };
+  }
+
+  /**
    * GET /digests/:id/stream — SSE for real-time generation progress.
    */
   @Get(':id/stream')

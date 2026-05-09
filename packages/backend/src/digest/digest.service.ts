@@ -526,6 +526,20 @@ export class DigestService {
     await this.emailQueue.add('send-digest-email', { digestId, userId }, { delay: 5_000 });
   }
 
+  /**
+   * Re-enqueue the email delivery job for an existing completed digest.
+   */
+  async sendDigestEmail(userId: string, digestId: string): Promise<void> {
+    const digest = await this.findById(userId, digestId);
+    if (!digest) {
+      throw new NotFoundException('Digest not found');
+    }
+    if (digest.status !== 'completed') {
+      throw new NotFoundException('Digest is not completed');
+    }
+    await this.emailQueue.add('send-digest-email', { digestId, userId }, { delay: 0 });
+  }
+
   private async linkDigestItems(
     userId: string,
     digestId: string,
