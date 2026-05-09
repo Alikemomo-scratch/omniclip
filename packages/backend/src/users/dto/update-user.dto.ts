@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min, Max, MaxLength, IsIn, Matches, ValidateIf } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEmail, Min, Max, MaxLength, IsIn, Matches, ValidateIf } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -41,4 +41,10 @@ export class UpdateUserDto {
   @IsOptional()
   @ValidateIf((o) => o.digest_config !== null)
   digest_config?: Record<string, unknown> | null;
+
+  @IsOptional()
+  @ValidateIf((o) => o.digest_email !== null)
+  @IsEmail({}, { message: 'digest_email must be a valid email address' })
+  @MaxLength(255)
+  digest_email?: string | null;
 }

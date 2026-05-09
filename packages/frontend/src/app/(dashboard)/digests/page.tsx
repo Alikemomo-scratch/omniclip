@@ -63,6 +63,19 @@ export default function DigestsPage() {
     },
   });
 
+  const [emailSent, setEmailSent] = useState('');
+
+  const sendEmailMutation = useMutation({
+    mutationFn: (id: string) => digestsApi.sendEmail(id),
+    onSuccess: () => {
+      setEmailSent('Email queued for delivery.');
+      setTimeout(() => setEmailSent(''), 3000);
+    },
+    onError: (err: ApiError) => {
+      setError(err.message || 'Failed to send email');
+    },
+  });
+
   function handleGenerateDaily() {
     const now = new Date();
     const dayAgo = new Date(now);
@@ -142,6 +155,12 @@ export default function DigestsPage() {
         </div>
       )}
 
+      {emailSent && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">
+          {emailSent}
+        </div>
+      )}
+
       {/* Type filter chips */}
       <div className="flex gap-2 mb-6">
         {(['', 'daily', 'weekly'] as const).map((t) => (
@@ -191,6 +210,8 @@ export default function DigestsPage() {
                 onArchive={(id) => archiveMutation.mutate(id)}
                 onUnarchive={(id) => unarchiveMutation.mutate(id)}
                 onDelete={(id) => deleteMutation.mutate(id)}
+                onSendEmail={(id) => sendEmailMutation.mutate(id)}
+                isSendingEmail={sendEmailMutation.isPending}
               />
             ))}
           </div>
@@ -219,6 +240,8 @@ function DigestCard({
   onArchive,
   onUnarchive,
   onDelete,
+  onSendEmail,
+  isSendingEmail,
 }: {
   digest: Digest;
   isSelected: boolean;
@@ -227,6 +250,8 @@ function DigestCard({
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onDelete: (id: string) => void;
+  onSendEmail: (id: string) => void;
+  isSendingEmail: boolean;
 }) {
   const statusColors: Record<string, string> = {
     completed: 'bg-green-100 text-green-700',
@@ -277,6 +302,19 @@ function DigestCard({
         </button>
 
         <div className="flex gap-1 flex-shrink-0 ml-2">
+          {digest.status === 'completed' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSendEmail(digest.id); }}
+              disabled={isSendingEmail}
+              title="发送邮件"
+              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+              </svg>
+            </button>
+          )}
           {showArchived ? (
             <button
               onClick={(e) => { e.stopPropagation(); onUnarchive(digest.id); }}

@@ -25,6 +25,7 @@ export class UsersService {
           contentRetentionDays: users.contentRetentionDays,
           digestPrompt: users.digestPrompt,
           digestConfig: users.digestConfig,
+          digestEmail: users.digestEmail,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
         })
@@ -59,6 +60,7 @@ export class UsersService {
             ? normalizeDigestConfig(dto.digest_config)
             : null;
       }
+      if (dto.digest_email !== undefined) updateData.digestEmail = dto.digest_email ?? null;
 
       if (Object.keys(updateData).length === 0) {
         return this.findByIdInTx(tx, userId);
@@ -77,6 +79,7 @@ export class UsersService {
         contentRetentionDays: users.contentRetentionDays,
         digestPrompt: users.digestPrompt,
         digestConfig: users.digestConfig,
+        digestEmail: users.digestEmail,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       });
@@ -106,6 +109,7 @@ export class UsersService {
         contentRetentionDays: users.contentRetentionDays,
         digestPrompt: users.digestPrompt,
         digestConfig: users.digestConfig,
+        digestEmail: users.digestEmail,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       })
@@ -131,6 +135,7 @@ export class UsersService {
     contentRetentionDays: number;
     digestPrompt: string | null;
     digestConfig: unknown;
+    digestEmail: string | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -145,6 +150,7 @@ export class UsersService {
       content_retention_days: user.contentRetentionDays,
       digest_prompt: user.digestPrompt,
       digest_config: user.digestConfig ?? null,
+      digest_email: user.digestEmail,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
     };
