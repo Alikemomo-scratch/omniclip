@@ -15,6 +15,21 @@ import { buildApiKeyFromCookies } from './twitter.utils';
 export class TwitterConnector implements PlatformConnector {
   private readonly logger = new Logger(TwitterConnector.name);
 
+  /**
+   * Passthrough error handler that bypasses rettiwt-api's default ErrorService.
+   *
+   * rettiwt-api v7 has a bug where non-AxiosError exceptions (including its own
+   * TwitterError thrown for 200-OK-with-error-body responses) are swallowed and
+   * replaced with a generic `new Error('Unknown error')`.  By re-throwing the
+   * original error we preserve status codes, messages and details so that
+   * `toConnectorError` can map them correctly.
+   */
+  private readonly errorHandler = {
+    handle(error: unknown): void {
+      throw error;
+    },
+  };
+
   readonly platform = 'twitter' as const;
   readonly type = 'api' as const;
 
@@ -50,7 +65,12 @@ export class TwitterConnector implements PlatformConnector {
         message: `Twitter API accessible for @${me.userName}`,
       };
     } catch (error) {
-      this.logger.warn(`Twitter health check failed: ${(error as Error).message}`);
+      this.logger.warn(
+        'Twitter health check failed: %O',
+        error instanceof Error
+          ? { name: error.name, message: error.message, ...('status' in error ? { status: (error as Error & { status: unknown }).status } : {}), ...('details' in error ? { details: (error as Error & { details: unknown }).details } : {}) }
+          : { raw: String(error) },
+      );
 
       return {
         status: 'unhealthy',
@@ -135,7 +155,7 @@ export class TwitterConnector implements PlatformConnector {
   }
 
   private createClient(apiKey: string): Rettiwt {
-    return new Rettiwt({ apiKey, logging: false });
+    return new Rettiwt({ apiKey, logging: false, errorHandler: this.errorHandler });
   }
 
   private async fetchFollowingUsernames(rettiwt: Rettiwt): Promise<Set<string>> {
@@ -226,13 +246,22 @@ export class TwitterConnector implements PlatformConnector {
   }
 
   private extractStatus(error: unknown): number | undefined {
-    if (!(error instanceof Error) || !('response' in error)) return undefined;
+    if (!(error instanceof Error)) return undefined;
 
-    const response = error.response;
-    if (!response || typeof response !== 'object' || !('status' in response)) return undefined;
+    if ('response' in error) {
+      const response = (error as Error & { response: unknown }).response;
+      if (response && typeof response === 'object' && 'status' in response) {
+        const status = (response as { status: unknown }).status;
+        if (typeof status === 'number') return status;
+      }
+    }
 
-    const status = response.status;
-    return typeof status === 'number' ? status : undefined;
+    if ('status' in error) {
+      const status = (error as Error & { status: unknown }).status;
+      if (typeof status === 'number') return status;
+    }
+
+    return undefined;
   }
 
   private extractMessage(error: unknown): string {

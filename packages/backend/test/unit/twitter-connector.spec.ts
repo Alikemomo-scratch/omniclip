@@ -135,7 +135,7 @@ describe('TwitterConnector', () => {
 
     const result = await connector.healthCheck(createConnection({ api_key: 'api-key-123' }));
 
-    expect(Rettiwt).toHaveBeenCalledWith({ apiKey: 'api-key-123', logging: false });
+    expect(Rettiwt).toHaveBeenCalledWith({ apiKey: 'api-key-123', logging: false, errorHandler: expect.any(Object) });
     expect(result).toMatchObject({
       status: 'healthy',
     });
@@ -195,6 +195,7 @@ describe('TwitterConnector', () => {
     expect(Rettiwt).toHaveBeenCalledWith({
       apiKey: buildApiKeyFromCookies('auth-cookie', 'csrf-cookie'),
       logging: false,
+      errorHandler: expect.any(Object),
     });
     expect(mockFollowed).toHaveBeenCalledWith('cursor-1');
     expect(result).toMatchObject({
