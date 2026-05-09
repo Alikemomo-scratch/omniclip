@@ -102,8 +102,8 @@ importers:
         specifier: ^4.5.0
         version: 4.8.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       rettiwt-api:
-        specifier: ^7.0.1
-        version: 7.0.1
+        specifier: ^7.0.3
+        version: 7.0.3
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
@@ -3783,8 +3783,8 @@ packages:
     resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
     engines: {node: '>= 4'}
 
-  rettiwt-api@7.0.1:
-    resolution: {integrity: sha512-+zb34L2z3bzN+PxvzMzguLwHdcQDJtQyk4ZvnTvSQp3+EFC8AJgP0kyg57DQCBwSm+ta5JaHuNMJONdVPNs6xQ==}
+  rettiwt-api@7.0.3:
+    resolution: {integrity: sha512-8Y9FaA83h/DJPh48HT8Ld3OBn3B7syrMDqH4J69qpj0SctMxl+wYXi4q3CahvRJ007AwW/vhJiYI8JJNz63wug==}
     engines: {node: ^22.21.0}
     hasBin: true
 
@@ -4419,8 +4419,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  x-client-transaction-id@0.2.0:
-    resolution: {integrity: sha512-E2EgeyQpeOLOk4z7OS+IDpj7xwiKeUQHly6L1dTG2YYCEGtR6JLa6Ft5ra3pB7bY5esPb6Pqokt1DQeRm73i5g==}
+  x-client-transaction-id@0.2.3:
+    resolution: {integrity: sha512-SgCpLpswNoUAJpphrKrouCByvBCOBWvBiGynQ8+Ioncc67uG5FafTFBpAtpEiUMhjAK/MRIQF578fl9C6BUfKg==}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -7829,7 +7829,7 @@ snapshots:
 
   retry@0.12.0: {}
 
-  rettiwt-api@7.0.1:
+  rettiwt-api@7.0.3:
     dependencies:
       axios: 1.15.1
       chalk: 5.6.2
@@ -7840,7 +7840,7 @@ snapshots:
       linkedom: 0.18.12
       node-html-parser: 7.1.0
       socks-proxy-agent: 8.0.5
-      x-client-transaction-id: 0.2.0
+      x-client-transaction-id: 0.2.3
     transitivePeerDependencies:
       - canvas
       - debug
@@ -8621,7 +8621,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  x-client-transaction-id@0.2.0:
+  x-client-transaction-id@0.2.3:
     dependencies:
       linkedom: 0.18.12
     transitivePeerDependencies:
