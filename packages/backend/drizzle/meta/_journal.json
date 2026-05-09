@@ -9,5 +9,47 @@
       "tag": "0000_milky_doctor_spectrum",
       "breakpoints": true
     },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773150536413,
+      "tag": "0001_rls_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773150536414,
+      "tag": "0002_add_archived_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773150536415,
+      "tag": "0003_add_digest_prompt",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773150536416,
+      "tag": "0004_add_digest_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773150536417,
+      "tag": "0005_add_digest_error_message",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773150536418,
+      "tag": "0006_soft_delete_platform_connections",
+      "breakpoints": true
+    }
   ]
 }

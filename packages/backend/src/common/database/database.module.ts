@@ -1,9 +1,13 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import * as path from 'path';
 import { DRIZZLE } from './database.constants';
 import * as schema from './schema';
+
+const logger = new Logger('DatabaseModule');
 
 @Global()
 @Module({
@@ -11,7 +15,7 @@ import * as schema from './schema';
     {
       provide: DRIZZLE,
       inject: [ConfigService],
-      useFactory: (config: ConfigService): NodePgDatabase<typeof schema> => {
+      useFactory: async (config: ConfigService): Promise<NodePgDatabase<typeof schema>> => {
         const pool = new Pool({
           connectionString: config.get<string>('database.url'),
           max: 20,
@@ -19,7 +23,16 @@ import * as schema from './schema';
           connectionTimeoutMillis: 5_000,
         });
 
-        return drizzle(pool, { schema });
+        const db = drizzle(pool, { schema });
+
+        if (process.env.NODE_ENV !== 'test') {
+          const migrationsFolder = path.join(__dirname, '..', '..', '..', 'drizzle');
+          logger.log('Running database migrations...');
+          await migrate(db, { migrationsFolder });
+          logger.log('Database migrations completed');
+        }
+
+        return db;
       },
     },
   ],
