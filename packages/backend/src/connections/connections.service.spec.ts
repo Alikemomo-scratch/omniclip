@@ -64,7 +64,7 @@ describe('ConnectionsService', () => {
         },
       ];
 
-      mockTx.from.mockReturnValue(mockConnections);
+      mockTx.where.mockReturnValueOnce(mockConnections);
 
       const result = await service.findAll('user-1');
       expect(result).toEqual(mockConnections);
@@ -172,13 +172,14 @@ describe('ConnectionsService', () => {
   });
 
   describe('remove', () => {
-    it('should delete connection', async () => {
+    it('should soft-delete connection', async () => {
       mockTx.where
         .mockResolvedValueOnce([{ id: 'conn-1' }]) // exists check
-        .mockResolvedValueOnce(undefined); // delete
+        .mockResolvedValueOnce(undefined); // soft-delete update
 
       await service.remove('user-1', 'conn-1');
-      expect(mockTx.delete).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
+      expect(mockTx.set).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when deleting non-existent', async () => {

@@ -6,7 +6,7 @@ import {
   BadRequestException,
   forwardRef,
 } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { DRIZZLE } from '../common/database/database.constants';
 import type { DrizzleDB } from '../common/database/rls.middleware';
 import { withRlsContext } from '../common/database/rls.middleware';
@@ -42,7 +42,8 @@ export class ConnectionsService {
           last_error: platformConnections.lastError,
           created_at: platformConnections.createdAt,
         })
-        .from(platformConnections);
+        .from(platformConnections)
+        .where(isNull(platformConnections.deletedAt));
     });
   }
 
@@ -51,9 +52,12 @@ export class ConnectionsService {
    */
   async create(userId: string, dto: CreateConnectionDto) {
     return withRlsContext(this.db, userId, async (tx) => {
-      // Check for duplicate
-      const existing = await tx
-        .select({ id: platformConnections.id })
+      // Check for existing connection (active or soft-deleted) — unique index on (userId, platform)
+      const [existing] = await tx
+        .select({
+          id: platformConnections.id,
+          deletedAt: platformConnections.deletedAt,
+        })
         .from(platformConnections)
         .where(
           and(
@@ -62,7 +66,7 @@ export class ConnectionsService {
           ),
         );
 
-      if (existing.length > 0) {
+      if (existing && !existing.deletedAt) {
         throw new ConflictException(`Platform ${dto.platform} is already connected`);
       }
 
@@ -84,6 +88,41 @@ export class ConnectionsService {
             `Twitter credential validation failed: ${health.message}`,
           );
         }
+      }
+
+      // Reactivate soft-deleted connection (preserves connection_id → content_items FK intact)
+      if (existing) {
+        const [reactivated] = await tx
+          .update(platformConnections)
+          .set({
+            deletedAt: null,
+            status: 'active',
+            connectionType: dto.connection_type,
+            authData: dto.auth_data ? encryptAuthData(dto.auth_data) : null,
+            syncIntervalMinutes: dto.sync_interval_minutes || 60,
+            errorCount: 0,
+            lastError: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(platformConnections.id, existing.id))
+          .returning({
+            id: platformConnections.id,
+            platform: platformConnections.platform,
+            connection_type: platformConnections.connectionType,
+            status: platformConnections.status,
+            sync_interval_minutes: platformConnections.syncIntervalMinutes,
+          });
+
+        if (reactivated.connection_type === 'api' && reactivated.status === 'active') {
+          await this.syncScheduler.scheduleConnection(
+            reactivated.id,
+            userId,
+            reactivated.platform,
+            reactivated.sync_interval_minutes,
+          );
+        }
+
+        return reactivated;
       }
 
       const [connection] = await tx
@@ -143,7 +182,7 @@ export class ConnectionsService {
           updated_at: platformConnections.updatedAt,
         })
         .from(platformConnections)
-        .where(eq(platformConnections.id, connectionId));
+        .where(and(eq(platformConnections.id, connectionId), isNull(platformConnections.deletedAt)));
 
       if (!connection) {
         throw new NotFoundException('Connection not found');
@@ -158,11 +197,10 @@ export class ConnectionsService {
    */
   async update(userId: string, connectionId: string, dto: UpdateConnectionDto) {
     return withRlsContext(this.db, userId, async (tx) => {
-      // Verify it exists and belongs to user (RLS handles ownership)
       const [existing] = await tx
         .select({ id: platformConnections.id })
         .from(platformConnections)
-        .where(eq(platformConnections.id, connectionId));
+        .where(and(eq(platformConnections.id, connectionId), isNull(platformConnections.deletedAt)));
 
       if (!existing) {
         throw new NotFoundException('Connection not found');
@@ -213,20 +251,23 @@ export class ConnectionsService {
   }
 
   /**
-   * Delete a connection.
+   * Soft-delete a connection.
    */
   async remove(userId: string, connectionId: string) {
     return withRlsContext(this.db, userId, async (tx) => {
       const [existing] = await tx
         .select({ id: platformConnections.id })
         .from(platformConnections)
-        .where(eq(platformConnections.id, connectionId));
+        .where(and(eq(platformConnections.id, connectionId), isNull(platformConnections.deletedAt)));
 
       if (!existing) {
         throw new NotFoundException('Connection not found');
       }
 
-      await tx.delete(platformConnections).where(eq(platformConnections.id, connectionId));
+      await tx
+        .update(platformConnections)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(platformConnections.id, connectionId));
       await this.syncScheduler.removeConnection(connectionId);
     });
   }
@@ -281,7 +322,7 @@ export class ConnectionsService {
       const [connection] = await tx
         .select()
         .from(platformConnections)
-        .where(eq(platformConnections.id, connectionId));
+        .where(and(eq(platformConnections.id, connectionId), isNull(platformConnections.deletedAt)));
 
       if (!connection) {
         throw new NotFoundException('Connection not found');
