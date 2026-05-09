@@ -31,7 +31,11 @@ export class EmailProcessor extends WorkerHost {
 
     // 1. Load user
     const [user] = await this.db
-      .select({ email: users.email, emailDigestEnabled: users.emailDigestEnabled })
+      .select({
+        email: users.email,
+        digestEmail: users.digestEmail,
+        emailDigestEnabled: users.emailDigestEnabled,
+      })
       .from(users)
       .where(eq(users.id, userId));
 
@@ -39,6 +43,8 @@ export class EmailProcessor extends WorkerHost {
       this.logger.log(`Skipping email for user ${userId} (disabled or not found)`);
       return;
     }
+
+    const recipientEmail = user.digestEmail ?? user.email;
 
     // 2. Load digest
     const [digest] = await this.db.select().from(digests).where(eq(digests.id, digestId));
@@ -68,7 +74,7 @@ export class EmailProcessor extends WorkerHost {
     const subject = `OmniClip ${typeLabel} Digest — ${dateStr}`;
 
     try {
-      const result = await this.emailService.sendDigestEmail(user.email, { subject, html });
+      const result = await this.emailService.sendDigestEmail(recipientEmail, { subject, html });
 
       // 5. Log success
       await this.db.insert(emailDeliveryLogs).values({
@@ -79,7 +85,7 @@ export class EmailProcessor extends WorkerHost {
         sentAt: new Date(),
       });
 
-      this.logger.log(`Email sent to ${user.email} for digest ${digestId}`);
+      this.logger.log(`Email sent to ${recipientEmail} for digest ${digestId}`);
     } catch (error) {
       // Log failure
       await this.db.insert(emailDeliveryLogs).values({
