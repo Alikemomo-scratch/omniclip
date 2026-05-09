@@ -355,6 +355,7 @@ export interface User {
   content_retention_days: number;
   digest_prompt: string | null;
   digest_config: DigestConfig | null;
+  digest_email: string | null;
 }
 
 export interface PresetTopic {
@@ -528,5 +529,9 @@ export const digestsApi = {
 
   delete(id: string): Promise<void> {
     return apiClient.delete(`/digests/${id}`);
+  },
+
+  sendEmail(id: string): Promise<{ message: string }> {
+    return apiClient.post(`/digests/${id}/send-email`);
   },
 };

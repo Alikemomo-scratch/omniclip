@@ -82,6 +82,7 @@ export default function SettingsPage() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const digestEmailValue = (formData.get('digest_email') as string).trim();
     updateMutation.mutate({
       display_name: formData.get('display_name') as string,
       preferred_language: formData.get('preferred_language') as string,
@@ -91,6 +92,7 @@ export default function SettingsPage() {
       content_retention_days: Number(formData.get('content_retention_days')),
       digest_config: digestConfig,
       digest_prompt: digestPrompt,
+      digest_email: digestEmailValue || null,
     });
   }
 
@@ -157,6 +159,23 @@ export default function SettingsPage() {
             className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-gray-500"
           />
           <p className="text-xs text-gray-400 mt-1">Email cannot be changed.</p>
+        </div>
+
+        <div>
+          <label htmlFor="digest_email" className="block text-sm font-medium text-gray-700 mb-1">
+            Digest Delivery Email
+          </label>
+          <input
+            id="digest_email"
+            name="digest_email"
+            type="email"
+            defaultValue={user.digest_email || ''}
+            placeholder={user.email}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            If set, digest emails will be sent to this address instead of your login email. Leave empty to use your login email.
+          </p>
         </div>
 
         <div>
