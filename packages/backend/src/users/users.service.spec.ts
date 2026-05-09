@@ -49,6 +49,8 @@ const mockUser = {
   timezone: 'Asia/Shanghai',
   contentRetentionDays: 90,
   digestPrompt: null,
+  digestConfig: null,
+  digestEmail: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
 };
