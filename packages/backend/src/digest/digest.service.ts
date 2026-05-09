@@ -466,22 +466,24 @@ export class DigestService {
     const dayEnd = new Date(dayStart);
     dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
-    const [row] = await this.db
-      .select({ id: digests.id, status: digests.status })
-      .from(digests)
-      .where(
-        and(
-          eq(digests.userId, userId),
-          eq(digests.digestType, digestType),
-          gte(digests.periodEnd, dayStart),
-          lte(digests.periodEnd, dayEnd),
-          inArray(digests.status, ['completed', 'generating', 'pending']),
-        ),
-      )
-      .orderBy(desc(digests.createdAt))
-      .limit(1);
+    return withRlsContext(this.db, userId, async (tx) => {
+      const [row] = await tx
+        .select({ id: digests.id, status: digests.status })
+        .from(digests)
+        .where(
+          and(
+            eq(digests.userId, userId),
+            eq(digests.digestType, digestType),
+            gte(digests.periodEnd, dayStart),
+            lte(digests.periodEnd, dayEnd),
+            inArray(digests.status, ['completed', 'generating', 'pending']),
+          ),
+        )
+        .orderBy(desc(digests.createdAt))
+        .limit(1);
 
-    return row ?? null;
+      return row ?? null;
+    });
   }
 
   formatErrorMessage(error: unknown): string {
